@@ -1,0 +1,67 @@
+.shell {
+  min-height: 100vh;
+}
+
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.9rem 1.5rem;
+  background: var(--color-surface);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.brand {
+  font-weight: 700;
+  font-size: 1.1rem;
+}
+
+.nav {
+  display: flex;
+  gap: 1.25rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.navLink {
+  font-size: 0.9rem;
+  color: var(--color-text-muted);
+  font-weight: 600;
+}
+
+.navLink:hover {
+  color: var(--color-primary);
+}
+
+.userInfo {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  font-size: 0.85rem;
+}
+
+.roleBadge {
+  padding: 0.2rem 0.6rem;
+  border-radius: 999px;
+  background: #eef0fd;
+  color: var(--color-primary-dark);
+  font-weight: 600;
+  font-size: 0.75rem;
+  text-transform: capitalize;
+}
+
+.content {
+  max-width: 68rem;
+  margin: 0 auto;
+  padding: 2rem 1.5rem;
+}
+
+.signOutButton {
+  padding: 0.4rem 0.9rem;
+  border-radius: var(--radius);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  font-weight: 600;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
