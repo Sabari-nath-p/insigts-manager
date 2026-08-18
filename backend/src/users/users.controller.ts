@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Delete, Get, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
@@ -6,8 +6,9 @@ import { Roles } from '../auth/decorators/roles.decorator';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { UsersService } from './users.service';
 import { CreateUserDto } from './dto/create-user.dto';
+import { UpdateUserDto } from './dto/update-user.dto';
 import { UpdateStatusDto } from './dto/update-status.dto';
-import { UserRole } from './user.entity';
+import { UserRole } from '@prisma/client';
 
 @ApiTags('users')
 @ApiBearerAuth()
@@ -17,14 +18,14 @@ export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
   @UseGuards(RolesGuard)
-  @Roles(UserRole.SUPER_ADMIN)
+  @Roles(UserRole.super_admin)
   @Post()
   create(@Body() dto: CreateUserDto) {
     return this.usersService.createUser(dto);
   }
 
   @UseGuards(RolesGuard)
-  @Roles(UserRole.SUPER_ADMIN)
+  @Roles(UserRole.super_admin)
   @Get()
   list() {
     return this.usersService.findAll();
@@ -35,6 +36,13 @@ export class UsersController {
   @Get('team/status')
   teamStatus() {
     return this.usersService.listTeamStatus();
+  }
+
+  @UseGuards(RolesGuard)
+  @Roles(UserRole.super_admin)
+  @Get('managers')
+  listManagers() {
+    return this.usersService.listManagers();
   }
 
   @Patch('me/status')
@@ -52,16 +60,33 @@ export class UsersController {
   }
 
   @UseGuards(RolesGuard)
-  @Roles(UserRole.SUPER_ADMIN)
+  @Roles(UserRole.super_admin)
   @Get(':id')
   detail(@Param('id') id: string) {
     return this.usersService.findByIdOrFail(id);
   }
 
   @UseGuards(RolesGuard)
-  @Roles(UserRole.SUPER_ADMIN)
+  @Roles(UserRole.super_admin)
   @Get(':id/overview')
   overview(@Param('id') id: string, @Query('from') from?: string, @Query('to') to?: string) {
     return this.usersService.getOverview(id, from, to);
+  }
+
+  @UseGuards(RolesGuard)
+  @Roles(UserRole.super_admin)
+  @Patch(':id')
+  update(@Param('id') id: string, @Body() dto: UpdateUserDto) {
+    return this.usersService.updateUser(id, dto);
+  }
+
+  @UseGuards(RolesGuard)
+  @Roles(UserRole.super_admin)
+  @Delete(':id')
+  deactivate(@CurrentUser() admin: { userId: string }, @Param('id') id: string) {
+    if (id === admin.userId) {
+      throw new BadRequestException('You cannot deactivate your own account');
+    }
+    return this.usersService.setActive(id, false);
   }
 }

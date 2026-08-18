@@ -31,11 +31,20 @@ export async function apiFetch<T>(path: string, options: ApiFetchOptions = {}): 
     cache: 'no-store',
   });
 
+  const text = await res.text();
+  const parse = () => {
+    try {
+      return text ? JSON.parse(text) : null;
+    } catch {
+      return null;
+    }
+  };
+
   if (!res.ok) {
-    const body = await res.json().catch(() => null);
+    const body = parse();
     const message = body?.message || `Request failed with status ${res.status}`;
     throw new Error(Array.isArray(message) ? message.join(', ') : message);
   }
 
-  return res.json() as Promise<T>;
+  return parse() as T;
 }

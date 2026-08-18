@@ -4,11 +4,11 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
-import { UserRole } from '../users/user.entity';
+import { UserRole } from '@prisma/client';
 import { LeavesService } from './leaves.service';
 import { ApplyLeaveDto } from './dto/apply-leave.dto';
 import { ReviewLeaveDto } from './dto/review-leave.dto';
-import { LeaveStatus } from './leave-request.entity';
+import { LeaveStatus } from '@prisma/client';
 
 @ApiTags('leaves')
 @ApiBearerAuth()
@@ -28,14 +28,14 @@ export class LeavesController {
   }
 
   @UseGuards(RolesGuard)
-  @Roles(UserRole.SUPER_ADMIN)
+  @Roles(UserRole.super_admin)
   @Get()
   listAll(@Query('status') status?: LeaveStatus) {
     return this.leavesService.listAll(status);
   }
 
   @UseGuards(RolesGuard)
-  @Roles(UserRole.SUPER_ADMIN)
+  @Roles(UserRole.super_admin)
   @Patch(':id/review')
   review(
     @CurrentUser() admin: { userId: string },

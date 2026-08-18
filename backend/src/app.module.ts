@@ -1,14 +1,21 @@
 import { Module } from '@nestjs/common';
-import { ConfigModule, ConfigService } from '@nestjs/config';
-import { TypeOrmModule } from '@nestjs/typeorm';
+import { ConfigModule } from '@nestjs/config';
+import { ScheduleModule } from '@nestjs/schedule';
 import configuration from './config/configuration';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
+import { PrismaModule } from './prisma/prisma.module';
 import { UsersModule } from './users/users.module';
 import { AuthModule } from './auth/auth.module';
 import { HealthModule } from './health/health.module';
 import { AttendanceModule } from './attendance/attendance.module';
 import { LeavesModule } from './leaves/leaves.module';
+import { ScheduledTasksModule } from './scheduled-tasks/scheduled-tasks.module';
+import { WorkLogsModule } from './worklogs/work-logs.module';
+import { KnowledgeBaseModule } from './knowledge-base/knowledge-base.module';
+import { ClientsModule } from './clients/clients.module';
+import { PayrollModule } from './payroll/payroll.module';
+import { CrmModule } from './crm/crm.module';
 
 @Module({
   imports: [
@@ -16,24 +23,19 @@ import { LeavesModule } from './leaves/leaves.module';
       isGlobal: true,
       load: [configuration],
     }),
-    TypeOrmModule.forRootAsync({
-      inject: [ConfigService],
-      useFactory: (configService: ConfigService) => ({
-        type: 'mysql',
-        host: configService.get<string>('database.host'),
-        port: configService.get<number>('database.port'),
-        username: configService.get<string>('database.username'),
-        password: configService.get<string>('database.password'),
-        database: configService.get<string>('database.database'),
-        autoLoadEntities: true,
-        synchronize: configService.get<boolean>('database.synchronize'),
-      }),
-    }),
+    ScheduleModule.forRoot(),
+    PrismaModule,
     AttendanceModule,
     LeavesModule,
     UsersModule,
     AuthModule,
     HealthModule,
+    ScheduledTasksModule,
+    WorkLogsModule,
+    KnowledgeBaseModule,
+    ClientsModule,
+    PayrollModule,
+    CrmModule,
   ],
   controllers: [AppController],
   providers: [AppService],

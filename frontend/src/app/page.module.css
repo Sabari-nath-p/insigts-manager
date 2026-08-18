@@ -33,12 +33,12 @@
 }
 
 .statusOk {
-  background: #e4f7e9;
-  color: #1c7a3d;
+  background: var(--badge-green-bg);
+  color: var(--badge-green-text);
 }
 
 .statusDown {
-  background: #fbe6e6;
+  background: var(--color-danger-bg);
   color: var(--color-danger);
 }
 

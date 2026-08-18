@@ -6,7 +6,7 @@ export const TOKEN_COOKIE = 'insights_token';
 export interface SessionUser {
   userId: string;
   email: string;
-  role: 'super_admin' | 'employee';
+  role: 'super_admin' | 'manager' | 'employee';
 }
 
 /**
@@ -50,6 +50,15 @@ export async function requireSession(): Promise<{ token: string; user: SessionUs
 export async function requireSuperAdmin(): Promise<{ token: string; user: SessionUser }> {
   const session = await requireSession();
   if (session.user.role !== 'super_admin') {
+    redirect('/dashboard');
+  }
+  return session;
+}
+
+/** Redirects to /dashboard if the current user can't review team work logs (manager or super admin). */
+export async function requireReviewer(): Promise<{ token: string; user: SessionUser }> {
+  const session = await requireSession();
+  if (session.user.role !== 'super_admin' && session.user.role !== 'manager') {
     redirect('/dashboard');
   }
   return session;

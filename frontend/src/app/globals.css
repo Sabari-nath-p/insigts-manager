@@ -1,14 +1,182 @@
-:root {
-  --color-bg: #f5f6fa;
+@import 'tailwindcss';
+
+/*
+ * Tailwind v4 needs a value present in @theme to generate each utility class
+ * (bg-bg, text-muted, border-border, rounded-lg, …). The actual light/dark
+ * color values are set at runtime below via plain CSS custom properties on
+ * :root — later in the cascade, same specificity, so they win. This block
+ * only registers token names/defaults with Tailwind. Values follow the
+ * Notion brand token spec in design.md (colors, radius scale, type family).
+ */
+@theme {
+  --color-bg: #fafaf9;
+  --color-sidebar: #f6f5f4;
   --color-surface: #ffffff;
-  --color-primary: #2d3fe0;
-  --color-primary-dark: #1f2bb3;
-  --color-text: #1a1d29;
-  --color-text-muted: #5a5f73;
-  --color-border: #e2e4ec;
-  --color-danger: #d43a3a;
-  --radius: 8px;
-  --shadow: 0 1px 3px rgba(20, 20, 40, 0.08);
+  --color-border: #e5e3df;
+  --color-text: #1a1a1a;
+  --color-muted: #787671;
+  --color-primary: #5645d4;
+  --color-primary-dark: #4534b3;
+  --color-primary-tint: #e6e0f5;
+  --color-danger: #e03131;
+  --color-danger-bg: #fbe4e4;
+
+  --font-sans: var(--font-inter), 'Notion Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI',
+    Helvetica, Arial, sans-serif;
+
+  --radius-xs: 4px;
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+  --radius-2xl: 20px;
+  --radius-3xl: 24px;
+}
+
+:root {
+  color-scheme: light;
+  --color-bg: #fafaf9;
+  --color-sidebar: #f6f5f4;
+  --color-surface: #ffffff;
+  --color-primary: #5645d4;
+  --color-primary-dark: #4534b3;
+  --color-primary-tint: #e6e0f5;
+  --color-text: #1a1a1a;
+  --color-text-muted: #787671;
+  --color-muted: #787671;
+  --color-border: #e5e3df;
+  --color-danger: #e03131;
+  --color-danger-bg: #fbe4e4;
+
+  --badge-green-bg: #d9f3e1;
+  --badge-green-text: #1aae39;
+  --badge-red-bg: #fbe4e4;
+  --badge-red-text: #e03131;
+  --badge-yellow-bg: #ffe8d4;
+  --badge-yellow-text: #793400;
+  --badge-gray-bg: #f0eeec;
+  --badge-gray-text: #787671;
+  --badge-blue-bg: #dcecfa;
+  --badge-blue-text: #0075de;
+
+  --chart-present: #1aae39;
+  --chart-absent: #e03131;
+  --chart-late: #dd5b00;
+  --chart-early: #0075de;
+  --chart-primary: #5645d4;
+
+  --tile-purple-bg: #e6e0f5;
+  --tile-purple-text: #391c57;
+  --tile-pink-bg: #fde0ec;
+  --tile-pink-text: #a02e6d;
+  --tile-orange-bg: #ffe8d4;
+  --tile-orange-text: #793400;
+  --tile-teal-bg: #d9f3e1;
+  --tile-teal-text: #237571;
+  --tile-green-bg: #d9f3e1;
+  --tile-green-text: #1aae39;
+  --tile-sky-bg: #dcecfa;
+  --tile-sky-text: #0075de;
+  --tile-gray-bg: #f0eeec;
+  --tile-gray-text: #787671;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    color-scheme: dark;
+    --color-bg: #191919;
+    --color-sidebar: #202020;
+    --color-surface: #202020;
+    --color-primary: #7c6ef0;
+    --color-primary-dark: #9089f5;
+    --color-primary-tint: rgba(124, 110, 240, 0.18);
+    --color-text: #e9e9e7;
+    --color-text-muted: #9b9b9b;
+    --color-muted: #9b9b9b;
+    --color-border: #2f2f2f;
+    --color-danger: #f2777a;
+    --color-danger-bg: rgba(242, 119, 122, 0.16);
+
+    --badge-green-bg: rgba(34, 197, 94, 0.16);
+    --badge-green-text: #4ade80;
+    --badge-red-bg: rgba(248, 113, 113, 0.16);
+    --badge-red-text: #f87171;
+    --badge-yellow-bg: rgba(251, 191, 36, 0.16);
+    --badge-yellow-text: #fbbf24;
+    --badge-gray-bg: rgba(255, 255, 255, 0.06);
+    --badge-gray-text: #9b9b9b;
+    --badge-blue-bg: rgba(0, 117, 222, 0.18);
+    --badge-blue-text: #5aa9f0;
+
+    --chart-present: #199e70;
+    --chart-absent: #e66767;
+    --chart-late: #c98500;
+    --chart-early: #3987e5;
+    --chart-primary: #7c6ef0;
+
+    --tile-purple-bg: rgba(124, 110, 240, 0.18);
+    --tile-purple-text: #b9aef7;
+    --tile-pink-bg: rgba(255, 100, 200, 0.16);
+    --tile-pink-text: #ff9fd9;
+    --tile-orange-bg: rgba(221, 91, 0, 0.2);
+    --tile-orange-text: #f0a15c;
+    --tile-teal-bg: rgba(42, 157, 153, 0.2);
+    --tile-teal-text: #5cc9c4;
+    --tile-green-bg: rgba(34, 197, 94, 0.16);
+    --tile-green-text: #4ade80;
+    --tile-sky-bg: rgba(0, 117, 222, 0.18);
+    --tile-sky-text: #5aa9f0;
+    --tile-gray-bg: rgba(255, 255, 255, 0.06);
+    --tile-gray-text: #9b9b9b;
+  }
+}
+
+:root[data-theme='dark'] {
+  color-scheme: dark;
+  --color-bg: #191919;
+  --color-sidebar: #202020;
+  --color-surface: #202020;
+  --color-primary: #7c6ef0;
+  --color-primary-dark: #9089f5;
+  --color-primary-tint: rgba(124, 110, 240, 0.18);
+  --color-text: #e9e9e7;
+  --color-text-muted: #9b9b9b;
+  --color-muted: #9b9b9b;
+  --color-border: #2f2f2f;
+  --color-danger: #f2777a;
+  --color-danger-bg: rgba(242, 119, 122, 0.16);
+
+  --badge-green-bg: rgba(34, 197, 94, 0.16);
+  --badge-green-text: #4ade80;
+  --badge-red-bg: rgba(248, 113, 113, 0.16);
+  --badge-red-text: #f87171;
+  --badge-yellow-bg: rgba(251, 191, 36, 0.16);
+  --badge-yellow-text: #fbbf24;
+  --badge-gray-bg: rgba(255, 255, 255, 0.06);
+  --badge-gray-text: #9b9b9b;
+  --badge-blue-bg: rgba(0, 117, 222, 0.18);
+  --badge-blue-text: #5aa9f0;
+
+  --chart-present: #199e70;
+  --chart-absent: #e66767;
+  --chart-late: #c98500;
+  --chart-early: #3987e5;
+  --chart-primary: #7c6ef0;
+
+  --tile-purple-bg: rgba(124, 110, 240, 0.18);
+  --tile-purple-text: #b9aef7;
+  --tile-pink-bg: rgba(255, 100, 200, 0.16);
+  --tile-pink-text: #ff9fd9;
+  --tile-orange-bg: rgba(221, 91, 0, 0.2);
+  --tile-orange-text: #f0a15c;
+  --tile-teal-bg: rgba(42, 157, 153, 0.2);
+  --tile-teal-text: #5cc9c4;
+  --tile-green-bg: rgba(34, 197, 94, 0.16);
+  --tile-green-text: #4ade80;
+  --tile-sky-bg: rgba(0, 117, 222, 0.18);
+  --tile-sky-text: #5aa9f0;
+  --tile-gray-bg: rgba(255, 255, 255, 0.06);
+  --tile-gray-text: #9b9b9b;
 }
 
 * {
@@ -24,8 +192,8 @@ body {
 body {
   background: var(--color-bg);
   color: var(--color-text);
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial,
-    sans-serif;
+  font-family: var(--font-sans);
+  transition: background-color 0.15s ease, color 0.15s ease;
 }
 
 a {
@@ -35,4 +203,18 @@ a {
 
 button {
   font-family: inherit;
+}
+
+::selection {
+  background: var(--color-primary-tint);
+}
+
+/* Notion-style thin scrollbar for sidebar / scrollable tables */
+.thin-scrollbar::-webkit-scrollbar {
+  height: 8px;
+  width: 8px;
+}
+.thin-scrollbar::-webkit-scrollbar-thumb {
+  background: var(--color-border);
+  border-radius: 999px;
 }

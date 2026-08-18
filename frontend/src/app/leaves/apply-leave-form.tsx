@@ -2,9 +2,10 @@
 
 import { FormEvent, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import shared from '@/components/shared.module.css';
+import { Field, FieldRow, Input, Select, Textarea, ErrorText } from '@/components/ui/field';
+import { Button } from '@/components/ui/button';
 
-export function ApplyLeaveForm() {
+export function ApplyLeaveForm({ onSuccess }: { onSuccess?: () => void }) {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -32,6 +33,7 @@ export function ApplyLeaveForm() {
       }
       (event.target as HTMLFormElement).reset();
       router.refresh();
+      onSuccess?.();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Something went wrong');
     } finally {
@@ -40,43 +42,33 @@ export function ApplyLeaveForm() {
   }
 
   return (
-    <form onSubmit={handleSubmit} className={shared.card}>
-      {error && <div className={shared.error}>{error}</div>}
-      <div className={shared.fieldRow}>
-        <div className={shared.field}>
-          <label className={shared.label} htmlFor="type">
-            Leave type
-          </label>
-          <select id="type" name="type" className={shared.select} defaultValue="paid">
-            <option value="paid">Paid</option>
-            <option value="medical">Medical</option>
-            <option value="unpaid">Unpaid (long leave)</option>
-          </select>
-        </div>
-      </div>
-      <div className={shared.fieldRow}>
-        <div className={shared.field}>
-          <label className={shared.label} htmlFor="startDate">
-            Start date
-          </label>
-          <input id="startDate" name="startDate" type="date" className={shared.input} required />
-        </div>
-        <div className={shared.field}>
-          <label className={shared.label} htmlFor="endDate">
-            End date
-          </label>
-          <input id="endDate" name="endDate" type="date" className={shared.input} required />
-        </div>
-      </div>
-      <div className={shared.field}>
-        <label className={shared.label} htmlFor="reason">
-          Reason
-        </label>
-        <textarea id="reason" name="reason" className={shared.textarea} required />
-      </div>
-      <button type="submit" className={shared.button} disabled={loading}>
+    <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+      {error && <ErrorText>{error}</ErrorText>}
+
+      <Field label="Leave type" htmlFor="type">
+        <Select id="type" name="type" defaultValue="paid">
+          <option value="paid">Paid</option>
+          <option value="medical">Medical</option>
+          <option value="unpaid">Unpaid (long leave)</option>
+        </Select>
+      </Field>
+
+      <FieldRow>
+        <Field label="Start date" htmlFor="startDate">
+          <Input id="startDate" name="startDate" type="date" required />
+        </Field>
+        <Field label="End date" htmlFor="endDate">
+          <Input id="endDate" name="endDate" type="date" required />
+        </Field>
+      </FieldRow>
+
+      <Field label="Reason" htmlFor="reason">
+        <Textarea id="reason" name="reason" required />
+      </Field>
+
+      <Button type="submit" disabled={loading} className="mt-2">
         {loading ? 'Submitting…' : 'Submit request'}
-      </button>
+      </Button>
     </form>
   );
 }

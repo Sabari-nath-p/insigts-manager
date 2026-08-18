@@ -1,53 +1,47 @@
 import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { User, UserRole, WorkingType, PresenceStatus, Prisma } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
-import { PresenceStatus, User, WorkingType } from './user.entity';
+import { PrismaService } from '../prisma/prisma.service';
 import { CreateUserDto } from './dto/create-user.dto';
+import { UpdateUserDto } from './dto/update-user.dto';
 import { AttendanceService } from '../attendance/attendance.service';
 import { LeavesService } from '../leaves/leaves.service';
+import { zonedDateString } from '../attendance/attendance-calculations';
 
 const SALT_ROUNDS = 10;
 
+type AuthUser = Pick<User, 'id' | 'fullName' | 'email' | 'password' | 'role' | 'isActive'>;
+
+/** First day of the current month in APP_TIMEZONE — not the server process's local date or UTC. */
 function firstDayOfCurrentMonth(): string {
-  const now = new Date();
-  return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1))
-    .toISOString()
-    .slice(0, 10);
+  return `${zonedDateString().slice(0, 7)}-01`;
 }
 
+/** "Today" in the company's operating timezone (APP_TIMEZONE) — not the server process's local date or UTC. */
 function todayDateString(): string {
-  return new Date().toISOString().slice(0, 10);
+  return zonedDateString();
 }
 
 @Injectable()
 export class UsersService {
   constructor(
-    @InjectRepository(User)
-    private readonly usersRepository: Repository<User>,
+    private readonly prisma: PrismaService,
     private readonly attendanceService: AttendanceService,
     private readonly leavesService: LeavesService,
   ) {}
 
   findAll(): Promise<User[]> {
-    return this.usersRepository.find({ order: { createdAt: 'DESC' } });
+    return this.prisma.user.findMany({ orderBy: { createdAt: 'desc' } });
   }
 
   findById(id: string): Promise<User | null> {
-    return this.usersRepository.findOne({ where: { id } });
+    return this.prisma.user.findUnique({ where: { id } });
   }
 
-  findByEmail(email: string): Promise<User | null> {
-    return this.usersRepository.findOne({
+  findByEmail(email: string): Promise<AuthUser | null> {
+    return this.prisma.user.findUnique({
       where: { email },
-      select: [
-        'id',
-        'fullName',
-        'email',
-        'password',
-        'role',
-        'isActive',
-      ],
+      select: { id: true, fullName: true, email: true, password: true, role: true, isActive: true },
     });
   }
 
@@ -60,45 +54,108 @@ export class UsersService {
   }
 
   async createUser(dto: CreateUserDto): Promise<User> {
-    const existing = await this.usersRepository.findOne({ where: { email: dto.email } });
+    const existing = await this.prisma.user.findUnique({ where: { email: dto.email } });
     if (existing) {
       throw new ConflictException('Email is already in use');
     }
 
     const hashed = await bcrypt.hash(dto.password, SALT_ROUNDS);
-    const user = this.usersRepository.create({
-      fullName: dto.fullName,
-      email: dto.email,
-      password: hashed,
-      phone: dto.phone,
-      role: dto.role,
-      workingType: dto.workingType,
-      fixedHoursPerDay: dto.workingType === WorkingType.FIXED ? dto.fixedHoursPerDay ?? null : null,
-      fixedStartTime: dto.workingType === WorkingType.FIXED ? dto.fixedStartTime ?? null : null,
-      fixedEndTime: dto.workingType === WorkingType.FIXED ? dto.fixedEndTime ?? null : null,
-      workingDays: dto.workingType === WorkingType.FIXED ? dto.workingDays ?? null : null,
-      flexibleMonthlyHours:
-        dto.workingType === WorkingType.FLEXIBLE ? dto.flexibleMonthlyHours ?? null : null,
-      currentSalary: dto.currentSalary.toString(),
-      paidLeaveQuota: dto.paidLeaveQuota ?? 12,
-      medicalLeaveQuota: dto.medicalLeaveQuota ?? 12,
+    return this.prisma.user.create({
+      data: {
+        fullName: dto.fullName,
+        email: dto.email,
+        password: hashed,
+        phone: dto.phone,
+        role: dto.role,
+        workingType: dto.workingType,
+        designation: dto.designation ?? null,
+        department: dto.department ?? null,
+        joiningDate: dto.joiningDate ?? null,
+        managerId: dto.managerId ?? null,
+        fixedHoursPerDay: dto.workingType === WorkingType.fixed ? dto.fixedHoursPerDay ?? null : null,
+        fixedStartTime: dto.workingType === WorkingType.fixed ? dto.fixedStartTime ?? null : null,
+        fixedEndTime: dto.workingType === WorkingType.fixed ? dto.fixedEndTime ?? null : null,
+        workingDays: (dto.workingType === WorkingType.fixed ? dto.workingDays ?? null : null) as Prisma.InputJsonValue,
+        flexibleMonthlyHours: dto.workingType === WorkingType.flexible ? dto.flexibleMonthlyHours ?? null : null,
+        currentSalary: dto.currentSalary.toString(),
+        paidLeaveQuota: dto.paidLeaveQuota ?? 12,
+        medicalLeaveQuota: dto.medicalLeaveQuota ?? 12,
+      },
     });
-    return this.usersRepository.save(user);
+  }
+
+  async updateUser(id: string, dto: UpdateUserDto): Promise<User> {
+    const user = await this.findByIdOrFail(id);
+
+    if (dto.email && dto.email !== user.email) {
+      const existing = await this.prisma.user.findUnique({ where: { email: dto.email } });
+      if (existing) {
+        throw new ConflictException('Email is already in use');
+      }
+    }
+
+    const data: Prisma.UserUpdateInput = {};
+    if (dto.email !== undefined) data.email = dto.email;
+    if (dto.fullName !== undefined) data.fullName = dto.fullName;
+    if (dto.phone !== undefined) data.phone = dto.phone;
+    if (dto.role !== undefined) data.role = dto.role;
+    if (dto.designation !== undefined) data.designation = dto.designation ?? null;
+    if (dto.department !== undefined) data.department = dto.department ?? null;
+    if (dto.joiningDate !== undefined) data.joiningDate = dto.joiningDate ?? null;
+    if (dto.managerId !== undefined) data.managerId = dto.managerId ?? null;
+    if (dto.currentSalary !== undefined) data.currentSalary = dto.currentSalary.toString();
+    if (dto.paidLeaveQuota !== undefined) data.paidLeaveQuota = dto.paidLeaveQuota;
+    if (dto.medicalLeaveQuota !== undefined) data.medicalLeaveQuota = dto.medicalLeaveQuota;
+    if (dto.isActive !== undefined) data.isActive = dto.isActive;
+
+    // Working-type-conditional fields are only touched when a new workingType is actually
+    // submitted, same shape as createUser — otherwise a partial edit (e.g. just phone) would
+    // wipe out an untouched employee's existing schedule.
+    if (dto.workingType !== undefined) {
+      data.workingType = dto.workingType;
+      if (dto.workingType === WorkingType.fixed) {
+        data.fixedHoursPerDay = dto.fixedHoursPerDay ?? user.fixedHoursPerDay ?? null;
+        data.fixedStartTime = dto.fixedStartTime ?? user.fixedStartTime ?? null;
+        data.fixedEndTime = dto.fixedEndTime ?? user.fixedEndTime ?? null;
+        data.workingDays = (dto.workingDays ?? (user.workingDays as string[] | null) ?? null) as Prisma.InputJsonValue;
+        data.flexibleMonthlyHours = null;
+      } else {
+        data.flexibleMonthlyHours = dto.flexibleMonthlyHours ?? user.flexibleMonthlyHours ?? null;
+        data.fixedHoursPerDay = null;
+        data.fixedStartTime = null;
+        data.fixedEndTime = null;
+        data.workingDays = Prisma.JsonNull;
+      }
+    }
+
+    return this.prisma.user.update({ where: { id }, data });
+  }
+
+  async setActive(id: string, isActive: boolean): Promise<User> {
+    await this.findByIdOrFail(id);
+    return this.prisma.user.update({ where: { id }, data: { isActive } });
   }
 
   async updateStatus(userId: string, status: PresenceStatus): Promise<User> {
-    const user = await this.findByIdOrFail(userId);
-    user.currentStatus = status;
-    return this.usersRepository.save(user);
+    await this.findByIdOrFail(userId);
+    return this.prisma.user.update({ where: { id: userId }, data: { currentStatus: status } });
   }
 
-  async listTeamStatus(): Promise<Pick<User, 'id' | 'fullName' | 'role' | 'currentStatus'>[]> {
-    const users = await this.usersRepository.find({
-      where: { isActive: true },
-      select: ['id', 'fullName', 'role', 'currentStatus'],
-      order: { fullName: 'ASC' },
+  /** Users eligible to be someone's manager (manager or super admin), for the "Reports to" picker. */
+  listManagers(): Promise<Pick<User, 'id' | 'fullName' | 'role'>[]> {
+    return this.prisma.user.findMany({
+      where: { role: { in: [UserRole.manager, UserRole.super_admin] }, isActive: true },
+      select: { id: true, fullName: true, role: true },
+      orderBy: { fullName: 'asc' },
     });
-    return users;
+  }
+
+  listTeamStatus(): Promise<Pick<User, 'id' | 'fullName' | 'role' | 'currentStatus'>[]> {
+    return this.prisma.user.findMany({
+      where: { isActive: true },
+      select: { id: true, fullName: true, role: true, currentStatus: true },
+      orderBy: { fullName: 'asc' },
+    });
   }
 
   /**
@@ -111,13 +168,13 @@ export class UsersService {
     const start = new Date(from);
     const end = new Date(to);
 
-    if (user.workingType === WorkingType.FIXED) {
-      const days = new Set(user.workingDays ?? []);
+    if (user.workingType === WorkingType.fixed) {
+      const days = new Set((user.workingDays as string[] | null) ?? []);
       const dayCodes = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
       let workingDayCount = 0;
       for (let d = new Date(start); d <= end; d.setUTCDate(d.getUTCDate() + 1)) {
         const code = dayCodes[d.getUTCDay()];
-        if (days.has(code as any)) workingDayCount += 1;
+        if (days.has(code)) workingDayCount += 1;
       }
       return workingDayCount * (user.fixedHoursPerDay ?? 0);
     }

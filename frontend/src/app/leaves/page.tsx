@@ -1,8 +1,12 @@
+import { CalendarDays } from 'lucide-react';
 import { requireSession } from '@/lib/session';
 import { apiFetch } from '@/lib/api';
 import { AppShell } from '@/components/app-shell';
-import shared from '@/components/shared.module.css';
-import { ApplyLeaveForm } from './apply-leave-form';
+import { PageHeader, SectionTitle } from '@/components/ui/page-header';
+import { PropertyList, PropertyRow } from '@/components/ui/property-row';
+import { Table, Thead, Th, Tr, Td, TableWrap, EmptyState } from '@/components/ui/table';
+import { LeaveStatusPill, LeaveTypePill } from '@/components/ui/pill';
+import { RequestLeaveButton } from './request-leave-button';
 
 interface LeaveRequest {
   id: string;
@@ -15,66 +19,69 @@ interface LeaveRequest {
   reviewNote: string | null;
 }
 
-function statusBadgeClass(status: string) {
-  if (status === 'approved') return shared.badgeGreen;
-  if (status === 'rejected') return shared.badgeRed;
-  return shared.badgeYellow;
+interface Overview {
+  leavesTaken: { paidDays: number; medicalDays: number; unpaidDays: number; totalDays: number };
+  leaveBalance: { paidRemaining: number; medicalRemaining: number };
 }
 
 export default async function LeavesPage() {
   const { token, user } = await requireSession();
-  const myLeaves = await apiFetch<LeaveRequest[]>('/leaves/me', { token });
+  const [myLeaves, overview] = await Promise.all([
+    apiFetch<LeaveRequest[]>('/leaves/me', { token }),
+    apiFetch<Overview>('/users/me/overview', { token }).catch(() => null),
+  ]);
 
   return (
     <AppShell user={user}>
-      <div className={shared.pageHeader}>
-        <div>
-          <h1 className={shared.pageTitle}>Leaves</h1>
-          <p className={shared.pageSubtitle}>
-            Paid and medical requests are sanctioned by an admin; if declined they&rsquo;re
-            marked unpaid instead of being flatly rejected.
-          </p>
-        </div>
-      </div>
+      <PageHeader
+        title="Leaves"
+        icon={CalendarDays}
+        tone="pink"
+        subtitle="Manage your leave requests and leave balance."
+        actions={<RequestLeaveButton />}
+      />
 
-      <ApplyLeaveForm />
+      {overview && (
+        <>
+          <SectionTitle>Leave balance</SectionTitle>
+          <PropertyList className="mb-2">
+            <PropertyRow label="Paid remaining" value={overview.leaveBalance.paidRemaining} />
+            <PropertyRow label="Medical remaining" value={overview.leaveBalance.medicalRemaining} />
+            <PropertyRow label="Days used (this period)" value={overview.leavesTaken.totalDays} />
+          </PropertyList>
+        </>
+      )}
 
-      <div className={shared.card}>
-        <p className={shared.pageSubtitle} style={{ marginBottom: '0.75rem' }}>
-          My requests
-        </p>
-        <div className={shared.tableWrap}>
-          <table className={shared.table}>
-            <thead>
-              <tr>
-                <th>Type</th>
-                <th>Dates</th>
-                <th>Days</th>
-                <th>Status</th>
-                <th>Reason</th>
-              </tr>
-            </thead>
-            <tbody>
-              {myLeaves.map((l) => (
-                <tr key={l.id}>
-                  <td>{l.type}</td>
-                  <td>
-                    {l.startDate} → {l.endDate}
-                  </td>
-                  <td>{l.days}</td>
-                  <td>
-                    <span className={`${shared.badge} ${statusBadgeClass(l.status)}`}>
-                      {l.status}
-                    </span>
-                  </td>
-                  <td>{l.reason}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          {myLeaves.length === 0 && <p className={shared.empty}>No leave requests yet.</p>}
-        </div>
-      </div>
+      <SectionTitle>My requests</SectionTitle>
+      <TableWrap>
+        <Table>
+          <Thead>
+            <Th>Type</Th>
+            <Th>Dates</Th>
+            <Th align="right">Days</Th>
+            <Th>Status</Th>
+            <Th>Reason</Th>
+          </Thead>
+          <tbody>
+            {myLeaves.map((l) => (
+              <Tr key={l.id}>
+                <Td>
+                  <LeaveTypePill type={l.type} />
+                </Td>
+                <Td>
+                  {l.startDate} → {l.endDate}
+                </Td>
+                <Td align="right">{l.days}</Td>
+                <Td>
+                  <LeaveStatusPill status={l.status} />
+                </Td>
+                <Td className="max-w-xs truncate text-muted">{l.reason}</Td>
+              </Tr>
+            ))}
+          </tbody>
+        </Table>
+        {myLeaves.length === 0 && <EmptyState>No leave requests yet.</EmptyState>}
+      </TableWrap>
     </AppShell>
   );
 }

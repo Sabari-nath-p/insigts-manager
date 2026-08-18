@@ -2,9 +2,10 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import shared from '@/components/shared.module.css';
+import { Button } from '@/components/ui/button';
+import { ErrorText } from '@/components/ui/field';
 
-export function ReviewButtons({ leaveId }: { leaveId: string }) {
+export function ReviewButtons({ leaveId, onDone }: { leaveId: string; onDone?: () => void }) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -23,6 +24,7 @@ export function ReviewButtons({ leaveId }: { leaveId: string }) {
         throw new Error(data?.message || 'Failed to review request');
       }
       router.refresh();
+      onDone?.();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Something went wrong');
     } finally {
@@ -32,25 +34,19 @@ export function ReviewButtons({ leaveId }: { leaveId: string }) {
 
   return (
     <div>
-      <div className={shared.buttonRow}>
-        <button
-          type="button"
-          className={shared.button}
-          disabled={loading}
-          onClick={() => review('approve')}
-        >
+      <div className="flex gap-1.5">
+        <Button size="sm" disabled={loading} onClick={() => review('approve')}>
           Approve
-        </button>
-        <button
-          type="button"
-          className={shared.buttonDanger}
-          disabled={loading}
-          onClick={() => review('reject')}
-        >
+        </Button>
+        <Button size="sm" variant="danger" disabled={loading} onClick={() => review('reject')}>
           Reject → unpaid
-        </button>
+        </Button>
       </div>
-      {error && <div className={shared.error} style={{ marginTop: '0.5rem' }}>{error}</div>}
+      {error && (
+        <div className="mt-2">
+          <ErrorText>{error}</ErrorText>
+        </div>
+      )}
     </div>
   );
 }

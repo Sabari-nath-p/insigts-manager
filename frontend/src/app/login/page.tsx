@@ -2,7 +2,9 @@
 
 import { FormEvent, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import styles from './login.module.css';
+import { LayoutGrid } from 'lucide-react';
+import { Field, Input, ErrorText } from '@/components/ui/field';
+import { Button } from '@/components/ui/button';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -35,45 +37,31 @@ export default function LoginPage() {
   }
 
   return (
-    <div className={styles.wrapper}>
-      <div className={styles.card}>
-        <h1 className={styles.title}>Welcome back</h1>
-        <p className={styles.subtitle}>Sign in to your Insights account</p>
+    <div className="flex min-h-screen items-center justify-center bg-bg p-6">
+      <div className="w-full max-w-sm rounded-lg border border-border bg-surface p-8">
+        <div className="mb-6 flex items-center gap-2">
+          <LayoutGrid size={20} className="text-primary" />
+          <span className="text-sm font-semibold text-text">Insights HRMS</span>
+        </div>
+        <h1 className="text-2xl font-bold tracking-tight text-text">Welcome back</h1>
+        <p className="mt-1 mb-6 text-sm text-muted">Sign in to your Insights account</p>
 
-        {error && <div className={styles.error}>{error}</div>}
-
-        <form onSubmit={handleSubmit}>
-          <div className={styles.field}>
-            <label className={styles.label} htmlFor="email">
-              Email
-            </label>
-            <input
-              id="email"
-              type="email"
-              className={styles.input}
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-            />
+        {error && (
+          <div className="mb-4">
+            <ErrorText>{error}</ErrorText>
           </div>
+        )}
 
-          <div className={styles.field}>
-            <label className={styles.label} htmlFor="password">
-              Password
-            </label>
-            <input
-              id="password"
-              type="password"
-              className={styles.input}
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-            />
-          </div>
-
-          <button type="submit" className={styles.submit} disabled={loading}>
+        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+          <Field label="Email" htmlFor="email">
+            <Input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
+          </Field>
+          <Field label="Password" htmlFor="password">
+            <Input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required />
+          </Field>
+          <Button type="submit" disabled={loading} className="mt-1 w-full">
             {loading ? 'Signing in…' : 'Sign in'}
-          </button>
+          </Button>
         </form>
       </div>
     </div>

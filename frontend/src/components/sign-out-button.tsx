@@ -1,9 +1,8 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import styles from './app-shell.module.css';
 
-export function SignOutButton() {
+export function SignOutButton({ className }: { className?: string }) {
   const router = useRouter();
 
   async function handleLogout() {
@@ -13,7 +12,7 @@ export function SignOutButton() {
   }
 
   return (
-    <button type="button" className={styles.signOutButton} onClick={handleLogout}>
+    <button type="button" className={className} onClick={handleLogout}>
       Sign out
     </button>
   );

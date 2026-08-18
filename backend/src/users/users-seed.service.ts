@@ -1,9 +1,8 @@
 import { Injectable, Logger, OnApplicationBootstrap } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { PresenceStatus, UserRole, WorkingType } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
-import { PresenceStatus, User, UserRole, WorkingType } from './user.entity';
+import { PrismaService } from '../prisma/prisma.service';
 
 const SALT_ROUNDS = 10;
 
@@ -17,15 +16,12 @@ export class UsersSeedService implements OnApplicationBootstrap {
   private readonly logger = new Logger(UsersSeedService.name);
 
   constructor(
-    @InjectRepository(User)
-    private readonly usersRepository: Repository<User>,
+    private readonly prisma: PrismaService,
     private readonly configService: ConfigService,
   ) {}
 
   async onApplicationBootstrap() {
-    const existing = await this.usersRepository.findOne({
-      where: { role: UserRole.SUPER_ADMIN },
-    });
+    const existing = await this.prisma.user.findFirst({ where: { role: UserRole.super_admin } });
     if (existing) return;
 
     const email = this.configService.get<string>('superAdmin.email');
@@ -41,23 +37,24 @@ export class UsersSeedService implements OnApplicationBootstrap {
     }
 
     const hashed = await bcrypt.hash(password, SALT_ROUNDS);
-    const admin = this.usersRepository.create({
-      fullName: fullName || 'Super Admin',
-      email,
-      password: hashed,
-      phone: phone || '0000000000',
-      role: UserRole.SUPER_ADMIN,
-      workingType: WorkingType.FIXED,
-      fixedHoursPerDay: 8,
-      fixedStartTime: '09:00',
-      fixedEndTime: '17:00',
-      workingDays: ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'] as any,
-      currentSalary: '0',
-      paidLeaveQuota: 12,
-      medicalLeaveQuota: 12,
-      currentStatus: PresenceStatus.OFFLINE,
+    await this.prisma.user.create({
+      data: {
+        fullName: fullName || 'Super Admin',
+        email,
+        password: hashed,
+        phone: phone || '0000000000',
+        role: UserRole.super_admin,
+        workingType: WorkingType.fixed,
+        fixedHoursPerDay: 8,
+        fixedStartTime: '09:00',
+        fixedEndTime: '17:00',
+        workingDays: ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'],
+        currentSalary: '0',
+        paidLeaveQuota: 12,
+        medicalLeaveQuota: 12,
+        currentStatus: PresenceStatus.offline,
+      },
     });
-    await this.usersRepository.save(admin);
     this.logger.log(`Bootstrapped initial super admin account: ${email}`);
   }
 }

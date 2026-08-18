@@ -1,0 +1,989 @@
+// Insights HRMS — Prisma schema (migrated from TypeORM).
+//
+// Deliberate mapping decisions, made to preserve exact existing application behavior rather
+// than adopt Prisma's "native" types everywhere (see the conversation for full reasoning):
+//
+// 1. TypeORM `decimal` columns are read/written by every service as plain JS strings
+//    (`"9000.00"`, formatted via `.toFixed(2)` before save). Prisma's `Decimal` type returns a
+//    `Decimal.js`-like object with different string-formatting semantics on read. To avoid
+//    subtly reformatting every already-verified money value across Payroll/CRM/Clients, all
+//    money columns are mapped to Prisma `String` here, not `Decimal`.
+// 2. TypeORM `date` (date-only, no time) columns are treated as plain "YYYY-MM-DD" strings
+//    throughout the app (attendance/payroll/CRM date-math all does string comparison/interp).
+//    Prisma has no string-date type — its `DateTime` is always a real JS `Date`. Mapped to
+//    Prisma `String` to preserve the exact existing string-based date-math everywhere.
+// 3. TypeORM `datetime` columns and `@CreateDateColumn`/`@UpdateDateColumn` ARE already treated
+//    as real `Date` objects throughout the app — these map directly to Prisma `DateTime`.
+// 4. TypeORM `simple-array`/`simple-json` columns map to Prisma `Json` — both let application
+//    code read/write plain JS arrays/objects directly, so no service code changes needed there.
+// 5. This app deliberately never uses TypeORM relations (`@ManyToOne` etc.), using plain scalar
+//    `xxxId` uuid columns instead, specifically to keep modules decoupled. Preserved as-is here:
+//    no Prisma `relation` fields, just scalar String columns with matching names.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+// ==========================================================================
+// Users / Auth
+// ==========================================================================
+
+enum UserRole {
+  super_admin
+  manager
+  employee
+}
+
+enum WorkingType {
+  fixed
+  flexible
+}
+
+enum PresenceStatus {
+  working
+  in_meeting
+  on_break
+  on_leave
+  offline
+}
+
+model User {
+  id       String   @id @default(uuid())
+  fullName String   @db.VarChar(100)
+  email    String   @unique @db.VarChar(150)
+  password String
+  phone    String   @db.VarChar(20)
+  role     UserRole @default(employee)
+
+  workingType WorkingType @default(fixed)
+  designation String?     @db.VarChar(100)
+  department  String?     @db.VarChar(100)
+  joiningDate String?
+  managerId   String?
+
+  fixedHoursPerDay Float?
+  fixedStartTime   String? @db.VarChar(5)
+  fixedEndTime     String? @db.VarChar(5)
+  workingDays      Json?
+
+  flexibleMonthlyHours Float?
+
+  currentSalary     String @default("0")
+  paidLeaveQuota    Int    @default(12)
+  medicalLeaveQuota Int    @default(12)
+
+  currentStatus PresenceStatus @default(offline)
+  isActive      Boolean        @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
+
+  @@map("users")
+}
+
+// ==========================================================================
+// Attendance
+// ==========================================================================
+
+enum WeekDay {
+  MON
+  TUE
+  WED
+  THU
+  FRI
+  SAT
+  SUN
+}
+
+enum AttendanceStatus {
+  present
+  late
+  early_checkout
+  late_and_early_checkout
+  half_day
+  currently_working
+  not_checked_out
+  absent
+  on_leave
+  weekend
+  holiday
+  holiday_worked
+  week_off_worked
+}
+
+model AttendanceRecord {
+  id     String @id @default(uuid())
+  userId String
+  date   String
+
+  checkInAt     DateTime?
+  checkOutAt    DateTime?
+  workedMinutes Int?
+
+  breakStartAt      DateTime?
+  totalBreakMinutes Int       @default(0)
+
+  scheduledStartTime String?
+  scheduledEndTime   String?
+  requiredMinutes    Int?
+
+  lateMinutes          Int @default(0)
+  earlyCheckoutMinutes Int @default(0)
+  overtimeMinutes      Int @default(0)
+
+  status AttendanceStatus @default(currently_working)
+
+  lastEditedBy String?
+  lastEditedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
+
+  @@unique([userId, date])
+  @@map("attendance_records")
+}
+
+model AttendanceBreak {
+  id                 String    @id @default(uuid())
+  attendanceRecordId String
+  startAt            DateTime
+  endAt              DateTime?
+  durationMinutes    Int?
+  createdAt          DateTime  @default(now())
+
+  @@index([attendanceRecordId])
+  @@map("attendance_breaks")
+}
+
+model AttendanceAuditLog {
+  id                 String   @id @default(uuid())
+  attendanceRecordId String
+  adminId            String
+  field              String   @db.VarChar(50)
+  oldValue           String?  @db.Text
+  newValue           String?  @db.Text
+  changedAt          DateTime @default(now())
+
+  @@index([attendanceRecordId])
+  @@map("attendance_audit_logs")
+}
+
+model AttendanceSettings {
+  id                        Int      @id @default(1)
+  workStartTime             String   @default("09:30") @db.VarChar(5)
+  workEndTime               String   @default("18:30") @db.VarChar(5)
+  requiredMinutesPerDay     Int      @default(480)
+  lateGraceMinutes          Int      @default(15)
+  earlyCheckoutGraceMinutes Int      @default(0)
+  workingDays               Json
+  weeklyOffDays             Json
+  secondSaturdayOff         Boolean  @default(false)
+  breakDurationMinutes      Int      @default(60)
+  halfDayThresholdMinutes   Int      @default(240)
+  overtimeThresholdMinutes  Int      @default(0)
+  flexibleWorkingEnabled    Boolean  @default(false)
+  updatedAt                 DateTime @default(now()) @updatedAt
+
+  @@map("attendance_settings")
+}
+
+enum HolidayType {
+  public_holiday
+  company_holiday
+  optional_holiday
+  restricted_holiday
+}
+
+model Holiday {
+  id                    String      @id @default(uuid())
+  date                  String      @unique
+  name                  String      @db.VarChar(150)
+  type                  HolidayType @default(public_holiday)
+  description           String?     @db.Text
+  isPaid                Boolean     @default(true)
+  isOptional            Boolean     @default(false)
+  isTentative           Boolean     @default(false)
+  applicableDepartments Json?
+  isActive              Boolean     @default(true)
+  createdAt             DateTime    @default(now())
+  updatedAt             DateTime    @default(now()) @updatedAt
+
+  @@map("holidays")
+}
+
+// ==========================================================================
+// Leaves
+// ==========================================================================
+
+enum LeaveType {
+  paid
+  medical
+  unpaid
+}
+
+enum LeaveStatus {
+  pending
+  approved
+  rejected
+}
+
+model LeaveRequest {
+  id                String      @id @default(uuid())
+  userId            String
+  type              LeaveType
+  status            LeaveStatus @default(pending)
+  startDate         String
+  endDate           String
+  days              Int
+  reason            String      @db.Text
+  reviewedBy        String?
+  reviewedAt        DateTime?
+  reviewNote        String?     @db.Text
+  isSystemGenerated Boolean     @default(false)
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @default(now()) @updatedAt
+
+  @@map("leave_requests")
+}
+
+// ==========================================================================
+// Work Logs
+// ==========================================================================
+
+enum WorkLogStatus {
+  draft
+  submitted
+  reviewed
+  returned
+}
+
+model WorkLog {
+  id               String        @id @default(uuid())
+  userId           String
+  date             String
+  tasksCompleted   String        @db.Text
+  blockers         String?       @db.Text
+  totalHoursWorked String?
+  meetingSummary   String?       @db.Text
+  status           WorkLogStatus @default(draft)
+  submittedAt      DateTime?
+  reviewedAt       DateTime?
+  reviewedBy       String?
+  reviewComment    String?       @db.Text
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @default(now()) @updatedAt
+
+  @@unique([userId, date])
+  @@map("work_logs")
+}
+
+// ==========================================================================
+// Knowledge Base
+// ==========================================================================
+
+enum KnowledgeResourceType {
+  document
+  file
+  link
+}
+
+enum KnowledgeResourceStatus {
+  draft
+  published
+  archived
+}
+
+enum KnowledgeVisibility {
+  all
+  restricted
+}
+
+model KnowledgeResource {
+  id            String                  @id @default(uuid())
+  title         String                  @db.VarChar(200)
+  description   String?                 @db.Text
+  categoryGroup String                  @db.VarChar(100)
+  category      String                  @db.VarChar(100)
+  tags          Json?
+  type          KnowledgeResourceType
+  status        KnowledgeResourceStatus @default(draft)
+
+  content String? @db.LongText
+
+  externalUrl String?
+
+  fileName     String?
+  fileMimeType String?
+  fileSize     Int?
+  fileData     Bytes?  @db.LongBlob
+
+  visibility         KnowledgeVisibility @default(all)
+  allowedDepartments Json?
+  allowedRoles       Json?
+
+  createdBy   String
+  updatedBy   String?
+  publishedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
+
+  @@map("knowledge_resources")
+}
+
+// ==========================================================================
+// Clients
+// ==========================================================================
+
+enum ClientStatus {
+  active
+  onboarding
+  paused
+  completed
+  archived
+}
+
+model Client {
+  id          String  @id @default(uuid())
+  clientName  String  @db.VarChar(150)
+  companyName String?
+
+  logoMimeType String?
+  logoData     Bytes?  @db.LongBlob
+
+  website            String?
+  industry           String?
+  niche              String?
+  location           String?
+  companyDescription String?      @db.Text
+  aboutText          String?      @db.Text
+  status             ClientStatus @default(onboarding)
+  dateOnboarded      String?
+  contractStartDate  String?
+  contractEndDate    String?
+  accountManagerId   String?
+
+  mission                      String? @db.Text
+  vision                       String? @db.Text
+  coreValues                   String? @db.Text
+  targetAudiencePrimary        String? @db.Text
+  targetAudienceSecondary      String? @db.Text
+  targetAudienceAgeGroup       String?
+  targetAudienceLocation       String?
+  targetAudienceInterests      String? @db.Text
+  targetAudiencePainPoints     String? @db.Text
+  targetAudienceBuyingBehavior String? @db.Text
+  businessModel                String? @db.Text
+  productsServices             String? @db.Text
+  keyDifferentiators           String? @db.Text
+  founded                      String?
+  companySize                  String?
+  locations                    String? @db.Text
+
+  brandName          String?
+  tagline            String?
+  brandDescription   String? @db.Text
+  brandPersonality   String? @db.Text
+  brandVoice         String? @db.Text
+  toneOfVoice        String? @db.Text
+  communicationStyle String? @db.Text
+  primaryColors      Json?
+  secondaryColors    Json?
+  accentColors       Json?
+  headingFont        String?
+  bodyFont           String?
+  logoUsageRules     String? @db.Text
+
+  preferredCommunicationMethod String?
+  preferredMeetingTime         String?
+  preferredContentStyle        String? @db.Text
+  preferredColors              String? @db.Text
+  thingsToAvoid                String? @db.Text
+  approvalProcess              String? @db.Text
+  reportingPreferences         String? @db.Text
+  specialRequirements          String? @db.Text
+
+  retainerValue   String?
+  retainerPackage String?
+  renewalDate     String?
+  retainerNotes   String? @db.Text
+
+  currentPriority String? @db.LongText
+  currentStrategy String? @db.LongText
+
+  createdBy String
+  updatedBy String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
+
+  @@map("clients")
+}
+
+model ClientContact {
+  id                     String   @id @default(uuid())
+  clientId               String
+  name                   String   @db.VarChar(150)
+  designation            String?
+  email                  String?
+  phone                  String?
+  whatsapp               String?
+  preferredContactMethod String?
+  isDecisionMaker        Boolean  @default(false)
+  isPrimary              Boolean  @default(false)
+  notes                  String?  @db.Text
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @default(now()) @updatedAt
+
+  @@map("client_contacts")
+}
+
+model ClientTeamMember {
+  id             String   @id @default(uuid())
+  clientId       String
+  userId         String
+  role           String   @db.VarChar(100)
+  responsibility String?  @db.Text
+  assignedDate   String?
+  createdAt      DateTime @default(now())
+
+  @@unique([clientId, userId])
+  @@map("client_team_members")
+}
+
+enum ClientServiceStatus {
+  active
+  paused
+  completed
+}
+
+model ClientServiceEntity {
+  id              String              @id @default(uuid())
+  clientId        String
+  name            String              @db.VarChar(150)
+  startDate       String?
+  status          ClientServiceStatus @default(active)
+  assignedUserIds Json?
+  deliverables    Json?
+  notes           String?             @db.Text
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @default(now()) @updatedAt
+
+  @@map("client_services")
+}
+
+enum ClientGoalStatus {
+  active
+  achieved
+  missed
+}
+
+model ClientGoal {
+  id        String           @id @default(uuid())
+  clientId  String
+  name      String           @db.VarChar(150)
+  target    Float
+  current   Float            @default(0)
+  startDate String?
+  endDate   String?
+  ownerId   String?
+  status    ClientGoalStatus @default(active)
+  notes     String?          @db.Text
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @default(now()) @updatedAt
+
+  @@map("client_goals")
+}
+
+enum ClientResourceKind {
+  file
+  link
+}
+
+model ClientAsset {
+  id           String             @id @default(uuid())
+  clientId     String
+  name         String             @db.VarChar(200)
+  folder       String             @db.VarChar(100)
+  description  String?            @db.Text
+  tags         Json?
+  kind         ClientResourceKind
+  fileName     String?
+  fileMimeType String?
+  fileSize     Int?
+  fileData     Bytes?             @db.LongBlob
+  externalUrl  String?
+  version      String?
+  isRestricted Boolean            @default(false)
+  uploadedBy   String
+  createdAt    DateTime           @default(now())
+  updatedAt    DateTime           @default(now()) @updatedAt
+
+  @@map("client_assets")
+}
+
+enum ClientDocumentCategory {
+  contract
+  agreement
+  proposal
+  invoice
+  report
+  strategy
+  meeting
+  other
+}
+
+model ClientDocument {
+  id             String                 @id @default(uuid())
+  clientId       String
+  name           String                 @db.VarChar(200)
+  category       ClientDocumentCategory @default(other)
+  fileName       String?
+  fileMimeType   String?
+  fileSize       Int?
+  fileData       Bytes?                 @db.LongBlob
+  version        String?
+  description    String?                @db.Text
+  isConfidential Boolean                @default(false)
+  uploadedBy     String
+  createdAt      DateTime               @default(now())
+  updatedAt      DateTime               @default(now()) @updatedAt
+
+  @@map("client_documents")
+}
+
+model ClientLink {
+  id          String   @id @default(uuid())
+  clientId    String
+  name        String   @db.VarChar(150)
+  url         String
+  category    String   @db.VarChar(50)
+  description String?  @db.Text
+  createdBy   String
+  createdAt   DateTime @default(now())
+
+  @@map("client_links")
+}
+
+enum ClientNoteCategory {
+  general
+  strategy
+  preference
+  important
+  meeting
+  warning
+  internal
+  other
+}
+
+model ClientNote {
+  id        String             @id @default(uuid())
+  clientId  String
+  category  ClientNoteCategory @default(general)
+  content   String             @db.Text
+  createdBy String
+  createdAt DateTime           @default(now())
+  updatedAt DateTime           @default(now()) @updatedAt
+
+  @@map("client_notes")
+}
+
+model ClientMeeting {
+  id                 String   @id @default(uuid())
+  clientId           String
+  title              String   @db.VarChar(200)
+  date               String
+  time               String?
+  participantUserIds Json?
+  meetingLink        String?
+  agenda             String?  @db.Text
+  notes              String?  @db.Text
+  decisions          String?  @db.Text
+  actionItems        String?  @db.Text
+  followUpDate       String?
+  createdBy          String
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @default(now()) @updatedAt
+
+  @@map("client_meetings")
+}
+
+model ClientActivity {
+  id          String   @id @default(uuid())
+  clientId    String
+  actorUserId String
+  action      String   @db.VarChar(60)
+  description String   @db.Text
+  createdAt   DateTime @default(now())
+
+  @@map("client_activities")
+}
+
+// ==========================================================================
+// Payroll
+// ==========================================================================
+
+enum PayrollEmployeeStatus {
+  active
+  excluded
+  on_hold
+}
+
+model EmployeeCompensation {
+  id                         String                @id @default(uuid())
+  userId                     String
+  monthlySalary              String
+  standardWorkingHoursPerDay Float
+  payrollStatus              PayrollEmployeeStatus @default(active)
+  effectiveFrom              String
+  effectiveTo                String?
+  notes                      String?               @db.Text
+  createdBy                  String
+  createdAt                  DateTime              @default(now())
+  updatedAt                  DateTime              @default(now()) @updatedAt
+
+  @@index([userId, effectiveFrom])
+  @@map("employee_compensations")
+}
+
+model LeavePayrollRule {
+  leaveType       LeaveType @id
+  isPayable       Boolean   @default(true)
+  payableFraction String    @default("1")
+  updatedBy       String?
+  updatedAt       DateTime  @default(now()) @updatedAt
+
+  @@map("leave_payroll_rules")
+}
+
+enum PayrollAdjustmentType {
+  bonus
+  incentive
+  deduction
+  reimbursement
+  advance_recovery
+  other
+}
+
+enum PayrollAdjustmentApproval {
+  pending
+  approved
+  rejected
+}
+
+model PayrollAdjustment {
+  id                String                    @id @default(uuid())
+  payrollRecordId   String
+  type              PayrollAdjustmentType
+  amount            String
+  reason            String                    @db.Text
+  addedBy           String
+  approvalStatus    PayrollAdjustmentApproval @default(approved)
+  isEmployeeVisible Boolean                   @default(false)
+  remarks           String?                   @db.Text
+  createdAt         DateTime                  @default(now())
+  updatedAt         DateTime                  @default(now()) @updatedAt
+
+  @@index([payrollRecordId])
+  @@map("payroll_adjustments")
+}
+
+enum PayrollRecordStatus {
+  draft
+  calculated
+  under_review
+  approved
+  finalized
+}
+
+enum PayrollPaymentStatus {
+  pending
+  paid
+}
+
+model PayrollRecord {
+  id           String @id @default(uuid())
+  userId       String
+  payrollMonth String @db.VarChar(7)
+
+  calendarDays        Int
+  weeklyOffDays       Int
+  holidayDays         Int
+  workingDays         Int
+  standardHoursPerDay Float
+  scheduledMinutes    Int
+
+  actualWorkedMinutes Int
+  payableMinutes      Int
+  extraMinutes        Int
+  paidLeaveDays       Int @default(0)
+  medicalLeaveDays    Int @default(0)
+  unpaidLeaveDays     Int @default(0)
+
+  monthlySalaryUsed  String
+  internalHourlyRate String
+  baseSalaryEarned   String
+  additionsTotal     String @default("0.00")
+  deductionsTotal    String @default("0.00")
+  finalPayableAmount String
+
+  status        PayrollRecordStatus  @default(calculated)
+  paymentStatus PayrollPaymentStatus @default(pending)
+
+  exceptions Json?
+
+  calculatedBy String
+  calculatedAt DateTime
+  approvedBy   String?
+  approvedAt   DateTime?
+  finalizedBy  String?
+  finalizedAt  DateTime?
+  paidBy       String?
+  paidAt       DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
+
+  @@unique([userId, payrollMonth])
+  @@map("payroll_records")
+}
+
+enum PayrollAuditAction {
+  calculated
+  recalculated
+  salary_changed
+  adjustment_added
+  adjustment_removed
+  under_review
+  approved
+  finalized
+  marked_paid
+  reopened
+}
+
+model PayrollAuditLog {
+  id              String             @id @default(uuid())
+  payrollRecordId String?
+  actorId         String
+  action          PayrollAuditAction
+  field           String?
+  oldValue        String?            @db.Text
+  newValue        String?            @db.Text
+  reason          String?            @db.Text
+  changedAt       DateTime           @default(now())
+
+  @@index([payrollRecordId])
+  @@map("payroll_audit_logs")
+}
+
+model PayrollSettings {
+  id             Int     @id @default(1)
+  payslipEnabled Boolean @default(true)
+
+  @@map("payroll_settings")
+}
+
+// ==========================================================================
+// CRM
+// ==========================================================================
+
+enum LeadStatus {
+  new
+  proposal
+  deposit
+  follow_up_ongoing
+  meeting_follow_up
+  won
+  lost
+}
+
+enum MeetingStatus {
+  show
+  no_show
+  rescheduled_by_us
+  rescheduled_by_them
+  cancel
+  dq
+}
+
+enum SaleType {
+  one_call
+  follow_up
+}
+
+enum LossReason {
+  price
+  timing
+  partner_spouse
+  competitor
+  ghosted
+  not_qualified
+}
+
+model Lead {
+  id           String     @id @default(uuid())
+  leadName     String     @db.VarChar(150)
+  companyName  String?
+  email        String?
+  phone        String?
+  whatsapp     String?
+  leadSourceId String?
+  setterId     String?
+  closerId     String?
+  status       LeadStatus @default(new)
+  isArchived   Boolean    @default(false)
+
+  firstContactAt   DateTime?
+  meetingBookedAt  DateTime?
+  meetingDate      String?
+  meetingTime      String?
+  lastTouchAt      DateTime?
+  nextFollowUpDate String?
+  wonAt            DateTime?
+  lostAt           DateTime?
+  depositPaidAt    String?
+  paidInFullAt     String?
+
+  meetingStatus      MeetingStatus?
+  meetingLink        String?
+  meetingNotes       String?        @db.Text
+  rescheduledDate    String?
+  cancellationReason String?        @db.Text
+  dqReason           String?        @db.Text
+
+  offerMade Boolean?
+  saleType  SaleType?
+
+  lossReason LossReason?
+  lossNotes  String?     @db.Text
+
+  depositAmount             String  @default("0.00")
+  dealValue                 String?
+  cashCollected             String  @default("0.00")
+  refundAmount              String  @default("0.00")
+  commissionOverridePercent String?
+
+  followUpNotes String? @db.Text
+  followUpCount Int     @default(0)
+
+  clientId  String?
+  createdBy String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
+
+  @@index([email])
+  @@index([setterId])
+  @@index([closerId])
+  @@index([status])
+  @@map("leads")
+}
+
+enum LeadActivityType {
+  call
+  whatsapp
+  email
+  instagram_dm
+  meeting
+  follow_up
+  proposal_sent
+  payment_request
+  status_change
+  field_change
+  note
+  other
+}
+
+model LeadActivity {
+  id            String           @id @default(uuid())
+  leadId        String
+  actorId       String
+  type          LeadActivityType
+  description   String           @db.Text
+  previousValue String?          @db.Text
+  newValue      String?          @db.Text
+  createdAt     DateTime         @default(now())
+
+  @@index([leadId])
+  @@map("lead_activities")
+}
+
+model LeadSource {
+  id        String   @id @default(uuid())
+  name      String   @unique @db.VarChar(100)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  @@map("lead_sources")
+}
+
+model DailySalesActivity {
+  id            String   @id @default(uuid())
+  userId        String
+  date          String
+  dials         Int      @default(0)
+  dmsSent       Int      @default(0)
+  conversations Int      @default(0)
+  notes         String?  @db.Text
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @default(now()) @updatedAt
+
+  @@unique([userId, date])
+  @@map("daily_sales_activities")
+}
+
+enum CommissionRuleScope {
+  default
+  role
+  employee
+}
+
+enum CommissionSalesRole {
+  setter
+  closer
+}
+
+model CommissionRule {
+  id        String               @id @default(uuid())
+  scope     CommissionRuleScope
+  salesRole CommissionSalesRole?
+  userId    String?
+  percent   String
+  updatedBy String?
+  createdAt DateTime             @default(now())
+  updatedAt DateTime             @default(now()) @updatedAt
+
+  @@map("commission_rules")
+}
+
+model SalesGoal {
+  id                String   @id @default(uuid())
+  period            String   @unique @db.VarChar(7)
+  revenueGoalAmount String
+  setBy             String
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @default(now()) @updatedAt
+
+  @@map("sales_goals")
+}
+
+enum SalesRole {
+  setter
+  closer
+  sales_manager
+}
+
+model SalesTeamMember {
+  id        String    @id @default(uuid())
+  userId    String    @unique
+  salesRole SalesRole
+  isActive  Boolean   @default(true)
+  addedBy   String
+  createdAt DateTime  @default(now())
+
+  @@map("sales_team_members")
+}

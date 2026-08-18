@@ -1,9 +1,9 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { IsDateString, IsEnum, IsNotEmpty } from 'class-validator';
-import { LeaveType } from '../leave-request.entity';
+import { LeaveType } from '@prisma/client';
 
 export class ApplyLeaveDto {
-  @ApiProperty({ enum: LeaveType, example: LeaveType.PAID })
+  @ApiProperty({ enum: LeaveType, example: LeaveType.paid })
   @IsEnum(LeaveType)
   type: LeaveType;
 

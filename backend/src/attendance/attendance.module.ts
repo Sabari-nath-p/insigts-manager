@@ -1,13 +1,13 @@
 import { Module } from '@nestjs/common';
-import { TypeOrmModule } from '@nestjs/typeorm';
-import { AttendanceRecord } from './attendance-record.entity';
 import { AttendanceService } from './attendance.service';
+import { AttendanceSettingsService } from './attendance-settings.service';
 import { AttendanceController } from './attendance.controller';
+import { LeavesModule } from '../leaves/leaves.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([AttendanceRecord])],
+  imports: [LeavesModule],
   controllers: [AttendanceController],
-  providers: [AttendanceService],
-  exports: [AttendanceService],
+  providers: [AttendanceService, AttendanceSettingsService],
+  exports: [AttendanceService, AttendanceSettingsService],
 })
 export class AttendanceModule {}

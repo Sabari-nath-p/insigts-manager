@@ -2,7 +2,8 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import shared from '@/components/shared.module.css';
+import { cn } from '@/lib/cn';
+import { ErrorText } from '@/components/ui/field';
 
 const STATUSES = [
   { value: 'working', label: 'Working' },
@@ -41,19 +42,22 @@ export function StatusSelector({ current }: { current: string }) {
   }
 
   return (
-    <div className={shared.card}>
-      <p className={shared.pageSubtitle} style={{ marginBottom: '0.75rem' }}>
-        Your status
-      </p>
-      {error && <div className={shared.error}>{error}</div>}
-      <div className={shared.buttonRow} style={{ flexWrap: 'wrap' }}>
+    <div className="mb-8">
+      <p className="mb-2 text-xs font-medium text-muted">Your status</p>
+      {error && <ErrorText>{error}</ErrorText>}
+      <div className="flex flex-wrap gap-1.5">
         {STATUSES.map((s) => (
           <button
             key={s.value}
             type="button"
             disabled={loading}
             onClick={() => updateStatus(s.value)}
-            className={s.value === status ? shared.button : shared.buttonSecondary}
+            className={cn(
+              'rounded-md border px-3 py-1.5 text-sm font-medium transition-colors disabled:opacity-60',
+              s.value === status
+                ? 'border-primary bg-primary text-white'
+                : 'border-border text-text hover:bg-black/[0.03] dark:hover:bg-white/[0.06]',
+            )}
           >
             {s.label}
           </button>

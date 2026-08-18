@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 import { UsersService } from '../users/users.service';
-import { User } from '../users/user.entity';
+import { User } from '@prisma/client';
 
 @Injectable()
 export class AuthService {
@@ -20,11 +20,11 @@ export class AuthService {
     return user;
   }
 
-  async login(user: User) {
+  async login(user: Pick<User, 'id' | 'fullName' | 'email' | 'role'>) {
     return this.buildAuthResponse(user);
   }
 
-  private buildAuthResponse(user: User) {
+  private buildAuthResponse(user: Pick<User, 'id' | 'fullName' | 'email' | 'role'>) {
     const accessToken = this.jwtService.sign({
       sub: user.id,
       email: user.email,

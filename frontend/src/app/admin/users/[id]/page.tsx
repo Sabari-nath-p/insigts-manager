@@ -2,7 +2,10 @@ import { notFound } from 'next/navigation';
 import { requireSuperAdmin } from '@/lib/session';
 import { apiFetch } from '@/lib/api';
 import { AppShell } from '@/components/app-shell';
-import shared from '@/components/shared.module.css';
+import { Avatar } from '@/components/ui/avatar';
+import { Pill } from '@/components/ui/pill';
+import { SectionTitle } from '@/components/ui/page-header';
+import { PropertyList, PropertyRow, Metric, MetricStrip } from '@/components/ui/property-row';
 
 interface UserDetail {
   id: string;
@@ -47,120 +50,63 @@ export default async function UserDetailPage({ params }: { params: Promise<{ id:
     notFound();
   }
 
+  const schedule =
+    detail.workingType === 'fixed'
+      ? `${detail.fixedHoursPerDay}h/day · ${detail.fixedStartTime}–${detail.fixedEndTime} · ${detail.workingDays?.join(', ')}`
+      : `${detail.flexibleMonthlyHours}h/month`;
+
   return (
-    <AppShell user={user}>
-      <div className={shared.pageHeader}>
-        <div>
-          <h1 className={shared.pageTitle}>{detail.fullName}</h1>
-          <p className={shared.pageSubtitle}>
-            {detail.email} · {detail.phone}
+    <AppShell user={user} title={detail.fullName}>
+      <div className="mb-8 flex items-start gap-4">
+        <Avatar name={detail.fullName} size="lg" />
+        <div className="min-w-0">
+          <h1 className="text-2xl font-bold tracking-tight text-text">{detail.fullName}</h1>
+          <p className="mt-1 text-sm text-muted">
+            <span className="capitalize">{detail.role.replace('_', ' ')}</span>
+            {detail.workingType && <> · <span className="capitalize">{detail.workingType}</span></>}
           </p>
         </div>
-        <span className={`${shared.badge} ${shared.badgeGray}`}>
-          {detail.role.replace('_', ' ')}
-        </span>
+        <Pill tone="badgeGray" className="ml-auto">
+          {detail.currentStatus.replace('_', ' ')}
+        </Pill>
       </div>
 
-      <div className={shared.card}>
-        <p className={shared.pageSubtitle} style={{ marginBottom: '0.75rem' }}>
-          Schedule &amp; compensation
-        </p>
-        <table className={shared.table}>
-          <tbody>
-            <tr>
-              <td>Working type</td>
-              <td>{detail.workingType}</td>
-            </tr>
-            {detail.workingType === 'fixed' ? (
-              <>
-                <tr>
-                  <td>Hours / day</td>
-                  <td>{detail.fixedHoursPerDay}</td>
-                </tr>
-                <tr>
-                  <td>Shift</td>
-                  <td>
-                    {detail.fixedStartTime} – {detail.fixedEndTime}
-                  </td>
-                </tr>
-                <tr>
-                  <td>Working days</td>
-                  <td>{detail.workingDays?.join(', ')}</td>
-                </tr>
-              </>
-            ) : (
-              <tr>
-                <td>Target hours / month</td>
-                <td>{detail.flexibleMonthlyHours}</td>
-              </tr>
-            )}
-            <tr>
-              <td>Current salary</td>
-              <td>{detail.currentSalary}</td>
-            </tr>
-            <tr>
-              <td>Paid leave quota</td>
-              <td>{detail.paidLeaveQuota} / year</td>
-            </tr>
-            <tr>
-              <td>Medical leave quota</td>
-              <td>{detail.medicalLeaveQuota} / year</td>
-            </tr>
-            <tr>
-              <td>Current status</td>
-              <td>{detail.currentStatus.replace('_', ' ')}</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
+      <PropertyList className="mb-2">
+        <PropertyRow label="Email" value={detail.email} />
+        <PropertyRow label="Phone" value={detail.phone} />
+        <PropertyRow label="Working type" value={<span className="capitalize">{detail.workingType}</span>} />
+        <PropertyRow label="Schedule" value={schedule} />
+        <PropertyRow label="Current salary" value={detail.currentSalary} />
+        <PropertyRow label="Leave quota" value={`${detail.paidLeaveQuota} paid / ${detail.medicalLeaveQuota} medical per year`} />
+        <PropertyRow
+          label="Leave balance"
+          value={`${overview.leaveBalance.paidRemaining} paid remaining · ${overview.leaveBalance.medicalRemaining} medical remaining`}
+        />
+      </PropertyList>
 
-      <p className={shared.pageSubtitle} style={{ marginBottom: '0.75rem' }}>
-        Overview ({overview.period.from} to {overview.period.to})
-      </p>
-      <div className={shared.statGrid}>
-        <div className={shared.statCard}>
-          <div className={shared.statLabel}>Hours worked</div>
-          <div className={shared.statValue}>{overview.totalWorkedHours}</div>
-        </div>
-        <div className={shared.statCard}>
-          <div className={shared.statLabel}>Expected hours</div>
-          <div className={shared.statValue}>{overview.expectedHours}</div>
-        </div>
-        <div className={shared.statCard}>
-          <div className={shared.statLabel}>Hours not worked</div>
-          <div className={shared.statValue}>{overview.totalWorkHoursNotWorked}</div>
-        </div>
-        <div className={shared.statCard}>
-          <div className={shared.statLabel}>Leave days taken</div>
-          <div className={shared.statValue}>{overview.leavesTaken.totalDays}</div>
-        </div>
-      </div>
+      <SectionTitle>Attendance ({overview.period.from} to {overview.period.to})</SectionTitle>
+      <MetricStrip className="mb-2">
+        <Metric label="Hours worked" value={overview.totalWorkedHours} />
+        <Metric label="Expected hours" value={overview.expectedHours} />
+        <Metric label="Hours not worked" value={overview.totalWorkHoursNotWorked} />
+        <Metric label="Leave days taken" value={overview.leavesTaken.totalDays} />
+      </MetricStrip>
 
-      <div className={shared.card}>
-        <p className={shared.pageSubtitle} style={{ marginBottom: '0.75rem' }}>
-          Leave breakdown
-        </p>
-        <table className={shared.table}>
-          <thead>
-            <tr>
-              <th>Paid</th>
-              <th>Medical</th>
-              <th>Unpaid</th>
-              <th>Paid remaining</th>
-              <th>Medical remaining</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td>{overview.leavesTaken.paidDays}</td>
-              <td>{overview.leavesTaken.medicalDays}</td>
-              <td>{overview.leavesTaken.unpaidDays}</td>
-              <td>{overview.leaveBalance.paidRemaining}</td>
-              <td>{overview.leaveBalance.medicalRemaining}</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
+      <SectionTitle>Leave history</SectionTitle>
+      <PropertyList className="mb-2">
+        <PropertyRow label="Paid days taken" value={overview.leavesTaken.paidDays} />
+        <PropertyRow label="Medical days taken" value={overview.leavesTaken.medicalDays} />
+        <PropertyRow label="Unpaid days taken" value={overview.leavesTaken.unpaidDays} />
+      </PropertyList>
+
+      <SectionTitle>Performance</SectionTitle>
+      <p className="text-sm text-muted">Not tracked yet.</p>
+
+      <SectionTitle>Documents</SectionTitle>
+      <p className="text-sm text-muted">No documents uploaded yet.</p>
+
+      <SectionTitle>Activity</SectionTitle>
+      <p className="text-sm text-muted">Not tracked yet.</p>
     </AppShell>
   );
 }

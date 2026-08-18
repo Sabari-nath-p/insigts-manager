@@ -1,0 +1,131 @@
+.viewSwitcher {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.viewButton {
+  padding: 0.45rem 0.9rem;
+  border-radius: var(--radius);
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.viewButtonActive {
+  background: var(--color-primary);
+  color: #fff;
+  border-color: var(--color-primary);
+}
+
+.monthNav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.75rem;
+}
+
+.monthTitle {
+  font-weight: 700;
+  font-size: 1.05rem;
+}
+
+.monthGrid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 4px;
+}
+
+.weekdayHeader {
+  text-align: center;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  padding: 0.25rem 0;
+}
+
+.emptyCell {
+  min-height: 3.4rem;
+}
+
+.dayCell {
+  min-height: 3.4rem;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  padding: 0.3rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  overflow: hidden;
+}
+
+.holidayCell {
+  cursor: pointer;
+  border-color: var(--color-primary);
+}
+
+.weekendCell {
+  background: var(--color-bg-subtle, rgba(128, 128, 128, 0.08));
+}
+
+.dayNumber {
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+.dayBadge {
+  font-size: 0.62rem;
+  padding: 0.1rem 0.35rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.yearGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
+  gap: 1.25rem;
+}
+
+.miniMonth {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  padding: 0.75rem;
+}
+
+.miniMonthTitle {
+  font-weight: 700;
+  font-size: 0.85rem;
+  margin-bottom: 0.5rem;
+}
+
+.miniGrid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 2px;
+}
+
+.miniWeekdayHeader {
+  text-align: center;
+  font-size: 0.6rem;
+  color: var(--color-text-muted);
+}
+
+.miniCell {
+  min-height: 1.4rem;
+  border-radius: 3px;
+  font-size: 0.62rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.miniCellHoliday {
+  cursor: pointer;
+  font-weight: 700;
+  color: #fff;
+}

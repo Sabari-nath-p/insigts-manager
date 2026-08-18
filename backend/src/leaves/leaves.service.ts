@@ -1,7 +1,6 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Between, Repository } from 'typeorm';
-import { LeaveRequest, LeaveStatus, LeaveType } from './leave-request.entity';
+import { LeaveRequest, LeaveStatus, LeaveType } from '@prisma/client';
+import { PrismaService } from '../prisma/prisma.service';
 import { ApplyLeaveDto } from './dto/apply-leave.dto';
 import { LeaveDecision, ReviewLeaveDto } from './dto/review-leave.dto';
 
@@ -16,64 +15,104 @@ function inclusiveDayCount(startDate: string, endDate: string): number {
 
 @Injectable()
 export class LeavesService {
-  constructor(
-    @InjectRepository(LeaveRequest)
-    private readonly leaveRepository: Repository<LeaveRequest>,
-  ) {}
+  constructor(private readonly prisma: PrismaService) {}
 
   async apply(userId: string, dto: ApplyLeaveDto): Promise<LeaveRequest> {
     const days = inclusiveDayCount(dto.startDate, dto.endDate);
     if (days <= 0) {
       throw new BadRequestException('endDate must be on or after startDate');
     }
-    const leave = this.leaveRepository.create({
-      userId,
-      type: dto.type,
-      status: LeaveStatus.PENDING,
-      startDate: dto.startDate,
-      endDate: dto.endDate,
-      days,
-      reason: dto.reason,
+    return this.prisma.leaveRequest.create({
+      data: {
+        userId,
+        type: dto.type,
+        status: LeaveStatus.pending,
+        startDate: dto.startDate,
+        endDate: dto.endDate,
+        days,
+        reason: dto.reason,
+      },
     });
-    return this.leaveRepository.save(leave);
   }
 
   listForUser(userId: string): Promise<LeaveRequest[]> {
-    return this.leaveRepository.find({ where: { userId }, order: { createdAt: 'DESC' } });
+    return this.prisma.leaveRequest.findMany({ where: { userId }, orderBy: { createdAt: 'desc' } });
   }
 
   listAll(status?: LeaveStatus): Promise<LeaveRequest[]> {
-    return this.leaveRepository.find({
+    return this.prisma.leaveRequest.findMany({
       where: status ? { status } : {},
-      order: { createdAt: 'DESC' },
+      orderBy: { createdAt: 'desc' },
     });
   }
 
   async review(reviewerId: string, leaveId: string, dto: ReviewLeaveDto): Promise<LeaveRequest> {
-    const leave = await this.leaveRepository.findOne({ where: { id: leaveId } });
+    const leave = await this.prisma.leaveRequest.findUnique({ where: { id: leaveId } });
     if (!leave) {
       throw new NotFoundException('Leave request not found');
     }
-    if (leave.status !== LeaveStatus.PENDING) {
+    if (leave.status !== LeaveStatus.pending) {
       throw new BadRequestException('This leave request has already been reviewed');
     }
 
+    let status: LeaveStatus;
+    let type = leave.type;
     if (dto.decision === LeaveDecision.APPROVE) {
-      leave.status = LeaveStatus.APPROVED;
-    } else if (leave.type === LeaveType.UNPAID) {
+      status = LeaveStatus.approved;
+    } else if (leave.type === LeaveType.unpaid) {
       // An unpaid request has nowhere further to fall back to — a rejection is final.
-      leave.status = LeaveStatus.REJECTED;
+      status = LeaveStatus.rejected;
     } else {
       // Paid/medical leave that isn't sanctioned is not denied outright: it is
       // auto-converted to unpaid leave and sanctioned as such.
-      leave.type = LeaveType.UNPAID;
-      leave.status = LeaveStatus.APPROVED;
+      type = LeaveType.unpaid;
+      status = LeaveStatus.approved;
     }
 
-    leave.reviewedBy = reviewerId;
-    leave.reviewedAt = new Date();
-    leave.reviewNote = dto.note ?? null;
-    return this.leaveRepository.save(leave);
+    return this.prisma.leaveRequest.update({
+      where: { id: leaveId },
+      data: { status, type, reviewedBy: reviewerId, reviewedAt: new Date(), reviewNote: dto.note ?? null },
+    });
+  }
+
+  /** True iff any leave request (regardless of status) already spans this date. */
+  async hasLeaveCoveringDate(userId: string, date: string): Promise<boolean> {
+    const leave = await this.prisma.leaveRequest.findFirst({
+      where: { userId, startDate: { lte: date }, endDate: { gte: date } },
+    });
+    return !!leave;
+  }
+
+  /** Approved leaves for one user that overlap the inclusive [from, to] range. */
+  listApprovedForUserInRange(userId: string, from: string, to: string): Promise<LeaveRequest[]> {
+    return this.prisma.leaveRequest.findMany({
+      where: { userId, status: LeaveStatus.approved, startDate: { lte: to }, endDate: { gte: from } },
+    });
+  }
+
+  /** Approved leaves (any user) that overlap the inclusive [from, to] range. */
+  listApprovedInRange(from: string, to: string): Promise<LeaveRequest[]> {
+    return this.prisma.leaveRequest.findMany({
+      where: { status: LeaveStatus.approved, startDate: { lte: to }, endDate: { gte: from } },
+    });
+  }
+
+  /** Creates an auto-approved unpaid leave for a single day, used by the nightly auto-leave job. */
+  createSystemLeave(userId: string, date: string, reason: string): Promise<LeaveRequest> {
+    return this.prisma.leaveRequest.create({
+      data: {
+        userId,
+        type: LeaveType.unpaid,
+        status: LeaveStatus.approved,
+        startDate: date,
+        endDate: date,
+        days: 1,
+        reason,
+        isSystemGenerated: true,
+        reviewedBy: null,
+        reviewedAt: null,
+      },
+    });
   }
 
   /** Approved leave days for a user within an inclusive date range, grouped by final type. */
@@ -82,14 +121,14 @@ export class LeavesService {
     from: string,
     to: string,
   ): Promise<{ paidDays: number; medicalDays: number; unpaidDays: number; totalDays: number }> {
-    const leaves = await this.leaveRepository.find({
-      where: { userId, status: LeaveStatus.APPROVED, startDate: Between(from, to) },
+    const leaves = await this.prisma.leaveRequest.findMany({
+      where: { userId, status: LeaveStatus.approved, startDate: { gte: from, lte: to } },
     });
     const summary = { paidDays: 0, medicalDays: 0, unpaidDays: 0, totalDays: 0 };
     for (const leave of leaves) {
       summary.totalDays += leave.days;
-      if (leave.type === LeaveType.PAID) summary.paidDays += leave.days;
-      else if (leave.type === LeaveType.MEDICAL) summary.medicalDays += leave.days;
+      if (leave.type === LeaveType.paid) summary.paidDays += leave.days;
+      else if (leave.type === LeaveType.medical) summary.medicalDays += leave.days;
       else summary.unpaidDays += leave.days;
     }
     return summary;
