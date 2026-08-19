@@ -15,9 +15,9 @@
   --color-border: #e5e3df;
   --color-text: #1a1a1a;
   --color-muted: #787671;
-  --color-primary: #5645d4;
-  --color-primary-dark: #4534b3;
-  --color-primary-tint: #e6e0f5;
+  --color-primary: #146356;
+  --color-primary-dark: #0e4a40;
+  --color-primary-tint: #daf3ec;
   --color-danger: #e03131;
   --color-danger-bg: #fbe4e4;
 
@@ -38,9 +38,9 @@
   --color-bg: #fafaf9;
   --color-sidebar: #f6f5f4;
   --color-surface: #ffffff;
-  --color-primary: #5645d4;
-  --color-primary-dark: #4534b3;
-  --color-primary-tint: #e6e0f5;
+  --color-primary: #146356;
+  --color-primary-dark: #0e4a40;
+  --color-primary-tint: #daf3ec;
   --color-text: #1a1a1a;
   --color-text-muted: #787671;
   --color-muted: #787671;
@@ -63,7 +63,7 @@
   --chart-absent: #e03131;
   --chart-late: #dd5b00;
   --chart-early: #0075de;
-  --chart-primary: #5645d4;
+  --chart-primary: #146356;
 
   --tile-purple-bg: #e6e0f5;
   --tile-purple-text: #391c57;
@@ -87,9 +87,9 @@
     --color-bg: #191919;
     --color-sidebar: #202020;
     --color-surface: #202020;
-    --color-primary: #7c6ef0;
-    --color-primary-dark: #9089f5;
-    --color-primary-tint: rgba(124, 110, 240, 0.18);
+    --color-primary: #2dd4a8;
+    --color-primary-dark: #5eead4;
+    --color-primary-tint: rgba(45, 212, 168, 0.18);
     --color-text: #e9e9e7;
     --color-text-muted: #9b9b9b;
     --color-muted: #9b9b9b;
@@ -112,7 +112,7 @@
     --chart-absent: #e66767;
     --chart-late: #c98500;
     --chart-early: #3987e5;
-    --chart-primary: #7c6ef0;
+    --chart-primary: #2dd4a8;
 
     --tile-purple-bg: rgba(124, 110, 240, 0.18);
     --tile-purple-text: #b9aef7;
@@ -136,9 +136,9 @@
   --color-bg: #191919;
   --color-sidebar: #202020;
   --color-surface: #202020;
-  --color-primary: #7c6ef0;
-  --color-primary-dark: #9089f5;
-  --color-primary-tint: rgba(124, 110, 240, 0.18);
+  --color-primary: #2dd4a8;
+  --color-primary-dark: #5eead4;
+  --color-primary-tint: rgba(45, 212, 168, 0.18);
   --color-text: #e9e9e7;
   --color-text-muted: #9b9b9b;
   --color-muted: #9b9b9b;
@@ -161,7 +161,7 @@
   --chart-absent: #e66767;
   --chart-late: #c98500;
   --chart-early: #3987e5;
-  --chart-primary: #7c6ef0;
+  --chart-primary: #2dd4a8;
 
   --tile-purple-bg: rgba(124, 110, 240, 0.18);
   --tile-purple-text: #b9aef7;

@@ -2,9 +2,10 @@
 
 import { useState } from 'react';
 import * as Dialog from '@radix-ui/react-dialog';
-import { LayoutGrid, X } from 'lucide-react';
+import { X } from 'lucide-react';
 import { Sidebar, SidebarNav } from './sidebar';
 import { Topbar } from './topbar';
+import { BrandMark } from './brand-mark';
 import type { SessionUser } from '@/lib/session';
 
 export function AppShell({
@@ -29,7 +30,7 @@ export function AppShell({
             <Dialog.Title className="sr-only">Navigation</Dialog.Title>
             <div className="flex h-14 items-center justify-between border-b border-border px-4">
               <div className="flex items-center gap-2">
-                <LayoutGrid size={18} className="text-primary" />
+                <BrandMark size={22} />
                 <span className="text-sm font-semibold text-text">Insights HRMS</span>
               </div>
               <Dialog.Close className="flex h-8 w-8 items-center justify-center rounded-md text-muted hover:bg-black/[0.04] dark:hover:bg-white/[0.06]">

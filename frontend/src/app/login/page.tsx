@@ -2,9 +2,9 @@
 
 import { FormEvent, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { LayoutGrid } from 'lucide-react';
 import { Field, Input, ErrorText } from '@/components/ui/field';
 import { Button } from '@/components/ui/button';
+import { BrandMark } from '@/components/brand-mark';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -40,7 +40,7 @@ export default function LoginPage() {
     <div className="flex min-h-screen items-center justify-center bg-bg p-6">
       <div className="w-full max-w-sm rounded-lg border border-border bg-surface p-8">
         <div className="mb-6 flex items-center gap-2">
-          <LayoutGrid size={20} className="text-primary" />
+          <BrandMark size={24} />
           <span className="text-sm font-semibold text-text">Insights HRMS</span>
         </div>
         <h1 className="text-2xl font-bold tracking-tight text-text">Welcome back</h1>

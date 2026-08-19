@@ -3,9 +3,10 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { ChevronsLeft, ChevronsRight, LayoutGrid } from 'lucide-react';
+import { ChevronsLeft, ChevronsRight } from 'lucide-react';
 import { NAV_SECTIONS, hasNavRole } from '@/lib/nav';
 import { cn } from '@/lib/cn';
+import { BrandMark } from './brand-mark';
 import type { SessionUser } from '@/lib/session';
 
 const COLLAPSE_KEY = 'insights_sidebar_collapsed';
@@ -81,7 +82,7 @@ export function Sidebar({ user }: { user: SessionUser }) {
         )}
       >
         <div className="flex h-14 items-center justify-center border-b border-border">
-          <LayoutGrid size={18} className="text-primary" />
+          <BrandMark size={22} />
         </div>
         <nav className="flex flex-1 flex-col items-center gap-1 overflow-y-auto py-3">
           {NAV_SECTIONS.filter((section) => hasNavRole(user.role, section.roles)).flatMap((section) =>
@@ -128,7 +129,7 @@ export function Sidebar({ user }: { user: SessionUser }) {
       )}
     >
       <div className="flex h-14 items-center gap-2 border-b border-border px-4">
-        <LayoutGrid size={18} className="text-primary" />
+        <BrandMark size={22} />
         <span className="text-sm font-semibold text-text">Insights HRMS</span>
       </div>
       <SidebarNav user={user} />
