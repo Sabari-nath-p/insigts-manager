@@ -1,5 +1,6 @@
 import { AttendanceRecord, AttendanceStatus } from '@prisma/client';
 import { HolidayType } from '@prisma/client';
+import { computeWorkedMinutes } from './attendance-calculations';
 
 /** Statuses that represent a completed (or in-progress) attendance session. */
 export const ATTENDED_STATUSES = new Set<AttendanceStatus>([
@@ -81,6 +82,11 @@ export function buildAttendanceDayView(params: {
       if (isHoliday) status = AttendanceStatus.holiday_worked;
       else if (!isWorkingDay) status = AttendanceStatus.week_off_worked;
     }
+    // While still checked in, workedMinutes is null (only finalized at checkout) — compute
+    // worked-so-far against the current instant instead of showing a stale 0 to admins.
+    const workedMinutes =
+      record.workedMinutes ??
+      (record.checkInAt ? computeWorkedMinutes(record.checkInAt, new Date(), record.totalBreakMinutes) : 0);
     return {
       recordId: record.id,
       userId,
@@ -92,7 +98,7 @@ export function buildAttendanceDayView(params: {
       checkOutAt: record.checkOutAt,
       earlyCheckoutMinutes: record.earlyCheckoutMinutes,
       breakMinutes: record.totalBreakMinutes,
-      workedMinutes: record.workedMinutes ?? 0,
+      workedMinutes,
       overtimeMinutes: record.overtimeMinutes,
       status,
       holidayName: isHoliday ? holidayName : undefined,

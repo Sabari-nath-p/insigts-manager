@@ -48,9 +48,20 @@ export function formatMinutes(mins: number | null | undefined): string {
   return `${h}h ${m}m`;
 }
 
+// Must match the backend's APP_TIMEZONE (attendance-calculations.ts) — the app has one
+// org-wide operating timezone, not a per-viewer one. Passing this explicitly is required:
+// without it, toLocaleTimeString() falls back to the ambient runtime's timezone, which is
+// the browser's for client components but the Node server's (UTC in Docker) for server
+// components — producing different, wrong times depending on where a given page renders.
+const DISPLAY_TIMEZONE = 'Asia/Kolkata';
+
 export function formatTime(iso: string | null | undefined): string {
   if (!iso) return '—';
-  return new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  return new Date(iso).toLocaleTimeString([], {
+    hour: '2-digit',
+    minute: '2-digit',
+    timeZone: DISPLAY_TIMEZONE,
+  });
 }
 
 export function formatScheduledTime(hhmm: string | null | undefined): string {

@@ -17,6 +17,7 @@ import {
 } from '@/lib/attendance-format';
 import { EditAttendanceButton } from './edit-attendance-button';
 import { DateRangeFilter } from './date-range-filter';
+import { LiveWorkedMinutes } from './live-worked-minutes';
 
 interface UserSummary {
   id: string;
@@ -237,7 +238,14 @@ export default async function AdminAttendancePage({ searchParams }: { searchPara
                 <Td>{formatTime(r.checkOutAt)}</Td>
                 <Td className="text-muted">{r.earlyCheckoutMinutes > 0 ? formatMinutes(r.earlyCheckoutMinutes) : 'No'}</Td>
                 <Td className="text-muted">{formatMinutes(r.breakMinutes)}</Td>
-                <Td>{formatMinutes(r.workedMinutes)}</Td>
+                <Td>
+                  <LiveWorkedMinutes
+                    checkInAt={r.checkInAt}
+                    breakMinutes={r.breakMinutes}
+                    isLive={r.status === 'currently_working'}
+                    initialMinutes={r.workedMinutes}
+                  />
+                </Td>
                 <Td className="text-muted">{formatMinutes(r.overtimeMinutes)}</Td>
                 <Td>
                   <AttendanceStatusPill status={r.status} />
