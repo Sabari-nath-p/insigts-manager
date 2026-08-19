@@ -1,25 +1,20 @@
-import Link from 'next/link';
 import { requireSuperAdmin } from '@/lib/session';
 import { apiFetch } from '@/lib/api';
 import { AppShell } from '@/components/app-shell';
 import { ClipboardList } from 'lucide-react';
 import { PageHeader, SectionTitle } from '@/components/ui/page-header';
 import { LinkButton, Button } from '@/components/ui/button';
-import { Field, Select, CheckboxLabel } from '@/components/ui/field';
+import { Field, Select, Input, CheckboxLabel } from '@/components/ui/field';
 import { Metric, MetricStrip } from '@/components/ui/property-row';
-import { Table, Thead, Th, Tr, Td, TableWrap, EmptyState } from '@/components/ui/table';
-import { AttendanceStatusPill } from '@/components/ui/pill';
-import {
-  formatMinutes,
-  formatScheduledTime,
-  formatTime,
-  statusLabel,
-} from '@/lib/attendance-format';
-import { EditAttendanceButton } from './edit-attendance-button';
+import { formatMinutes, statusLabel, todayIST, currentMonthIST } from '@/lib/attendance-format';
 import { DateRangeFilter } from './date-range-filter';
-import { LiveWorkedMinutes } from './live-worked-minutes';
+import { AttendanceTabNav } from './attendance-tab-nav';
+import { Pager } from './pager';
+import { OverviewSection, type OverviewRow } from './overview-section';
+import { AttendanceMatrix, type MatrixRow } from './attendance-matrix';
+import { RecordsSection, type RecordRow } from './records-section';
 
-interface UserSummary {
+interface DirectoryUser {
   id: string;
   fullName: string;
   role: string;
@@ -37,23 +32,11 @@ interface AdminSummary {
   overtimeToday: { count: number; totalMinutes: number };
 }
 
-interface AdminRecordRow {
-  recordId: string | null;
-  userId: string;
-  fullName: string;
-  role: string;
-  department: string | null;
-  date: string;
-  scheduledStartTime: string | null;
-  checkInAt: string | null;
-  lateMinutes: number;
-  scheduledEndTime: string | null;
-  checkOutAt: string | null;
-  earlyCheckoutMinutes: number;
-  breakMinutes: number;
-  workedMinutes: number;
-  overtimeMinutes: number;
-  status: string;
+interface Page<T> {
+  items: T[];
+  total: number;
+  page: number;
+  pageSize: number;
 }
 
 const STATUS_OPTIONS = [
@@ -73,9 +56,12 @@ const STATUS_OPTIONS = [
 ];
 
 interface Filters {
+  tab?: string;
+  page?: string;
   employeeId?: string;
   department?: string;
   role?: string;
+  search?: string;
   date?: string;
   from?: string;
   to?: string;
@@ -87,23 +73,60 @@ interface Filters {
   onlyCurrentlyWorking?: string;
 }
 
+const PASSTHROUGH_KEYS: (keyof Filters)[] = [
+  'employeeId',
+  'department',
+  'role',
+  'search',
+  'date',
+  'from',
+  'to',
+  'month',
+  'status',
+  'onlyLate',
+  'onlyEarlyCheckout',
+  'onlyOvertime',
+  'onlyCurrentlyWorking',
+];
+
 export default async function AdminAttendancePage({ searchParams }: { searchParams: Promise<Filters> }) {
   const { token, user } = await requireSuperAdmin();
   const filters = await searchParams;
+  const tab = filters.tab === 'matrix' || filters.tab === 'records' ? filters.tab : 'overview';
+  const page = Math.max(1, parseInt(filters.page ?? '1', 10) || 1);
 
   const query = new URLSearchParams();
-  Object.entries(filters).forEach(([k, v]) => {
-    if (v) query.set(k, v);
+  PASSTHROUGH_KEYS.forEach((k) => {
+    if (filters[k]) query.set(k, filters[k]!);
   });
+  query.set('page', String(page));
 
-  const [employees, summary, records] = await Promise.all([
-    apiFetch<UserSummary[]>('/users', { token }),
+  // Separate from `query` (which is also used as-is for the backend fetch below): the Pager
+  // needs `tab` preserved in its Next/Previous links, or navigating pages would silently drop
+  // back to the default tab.
+  const pagerQuery = new URLSearchParams(query);
+  pagerQuery.set('tab', tab);
+
+  const [directory, summary] = await Promise.all([
+    apiFetch<DirectoryUser[]>('/users/directory', { token }),
     apiFetch<AdminSummary>(`/attendance/admin/summary${filters.date ? `?date=${filters.date}` : ''}`, { token }),
-    apiFetch<AdminRecordRow[]>(`/attendance/admin/records?${query.toString()}`, { token }),
   ]);
 
-  const departments = Array.from(new Set(employees.map((e) => e.department).filter((d): d is string => !!d)));
-  const hasFilters = Object.values(filters).some(Boolean);
+  let overview: Page<OverviewRow> | null = null;
+  let matrix: (Page<MatrixRow> & { days: string[] }) | null = null;
+  let records: Page<RecordRow> | null = null;
+
+  if (tab === 'overview') {
+    overview = await apiFetch<Page<OverviewRow>>(`/attendance/admin/overview?${query.toString()}`, { token });
+  } else if (tab === 'matrix') {
+    matrix = await apiFetch<Page<MatrixRow> & { days: string[] }>(`/attendance/admin/matrix?${query.toString()}`, { token });
+  } else {
+    records = await apiFetch<Page<RecordRow>>(`/attendance/admin/records?${query.toString()}`, { token });
+  }
+
+  const active = overview ?? matrix ?? records!;
+  const departments = Array.from(new Set(directory.map((e) => e.department).filter((d): d is string => !!d)));
+  const hasFilters = Object.entries(filters).some(([k, v]) => k !== 'tab' && k !== 'page' && Boolean(v));
 
   return (
     <AppShell user={user}>
@@ -130,13 +153,19 @@ export default async function AdminAttendancePage({ searchParams }: { searchPara
         <Metric label="Overtime" value={`${summary.overtimeToday.count} · ${formatMinutes(summary.overtimeToday.totalMinutes)}`} />
       </MetricStrip>
 
+      <AttendanceTabNav tab={tab} />
+
       <SectionTitle>Filters</SectionTitle>
       <form className="mb-6 rounded-lg border border-border bg-surface p-4">
+        <input type="hidden" name="tab" value={tab} />
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+          <Field label="Search" htmlFor="search">
+            <Input id="search" name="search" type="text" placeholder="Employee name" defaultValue={filters.search ?? ''} />
+          </Field>
           <Field label="Employee" htmlFor="employeeId">
             <Select id="employeeId" name="employeeId" defaultValue={filters.employeeId ?? ''}>
               <option value="">All employees</option>
-              {employees.map((e) => (
+              {directory.map((e) => (
                 <option key={e.id} value={e.id}>
                   {e.fullName}
                 </option>
@@ -157,24 +186,40 @@ export default async function AdminAttendancePage({ searchParams }: { searchPara
             <Select id="role" name="role" defaultValue={filters.role ?? ''}>
               <option value="">All roles</option>
               <option value="employee">Employee</option>
+              <option value="manager">Manager</option>
               <option value="super_admin">Super admin</option>
             </Select>
           </Field>
-          <Field label="Status" htmlFor="status">
-            <Select id="status" name="status" defaultValue={filters.status ?? ''}>
-              <option value="">All statuses</option>
-              {STATUS_OPTIONS.map((s) => (
-                <option key={s} value={s}>
-                  {statusLabel(s)}
-                </option>
-              ))}
-            </Select>
-          </Field>
-          <DateRangeFilter date={filters.date} month={filters.month} from={filters.from} to={filters.to} />
+
+          {tab === 'records' && (
+            <>
+              <Field label="Status" htmlFor="status">
+                <Select id="status" name="status" defaultValue={filters.status ?? ''}>
+                  <option value="">All statuses</option>
+                  {STATUS_OPTIONS.map((s) => (
+                    <option key={s} value={s}>
+                      {statusLabel(s)}
+                    </option>
+                  ))}
+                </Select>
+              </Field>
+              <DateRangeFilter date={filters.date} month={filters.month} from={filters.from} to={filters.to} />
+            </>
+          )}
+          {tab === 'overview' && (
+            <Field label="Date" htmlFor="date">
+              <Input id="date" name="date" type="date" defaultValue={filters.date || todayIST()} />
+            </Field>
+          )}
+          {tab === 'matrix' && (
+            <Field label="Month" htmlFor="month">
+              <Input id="month" name="month" type="month" defaultValue={filters.month || currentMonthIST()} />
+            </Field>
+          )}
         </div>
 
-        <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-border pt-4">
-          <div className="flex flex-wrap items-center gap-3">
+        {tab === 'records' && (
+          <div className="mt-4 flex flex-wrap items-center gap-3 border-t border-border pt-4">
             <span className="text-xs font-medium text-muted">Only show:</span>
             <CheckboxLabel name="onlyLate" value="true" defaultChecked={filters.onlyLate === 'true'}>
               Late
@@ -189,82 +234,25 @@ export default async function AdminAttendancePage({ searchParams }: { searchPara
               Working now
             </CheckboxLabel>
           </div>
-          <div className="flex items-center gap-2">
-            {hasFilters && (
-              <LinkButton href="/admin/attendance" variant="ghost" size="sm">
-                Clear
-              </LinkButton>
-            )}
-            <Button type="submit" size="sm">
-              Apply
-            </Button>
-          </div>
+        )}
+
+        <div className="mt-4 flex items-center justify-end gap-2 border-t border-border pt-4">
+          {hasFilters && (
+            <LinkButton href={`/admin/attendance?tab=${tab}`} variant="ghost" size="sm">
+              Clear
+            </LinkButton>
+          )}
+          <Button type="submit" size="sm">
+            Apply
+          </Button>
         </div>
       </form>
 
-      <SectionTitle>{records.length} record(s)</SectionTitle>
-      <TableWrap>
-        <Table>
-          <Thead sticky>
-            <Th>Employee</Th>
-            <Th>Role</Th>
-            <Th>Date</Th>
-            <Th>Scheduled in</Th>
-            <Th>Clock in</Th>
-            <Th>Late</Th>
-            <Th>Scheduled out</Th>
-            <Th>Clock out</Th>
-            <Th>Early</Th>
-            <Th>Break</Th>
-            <Th>Worked</Th>
-            <Th>Overtime</Th>
-            <Th>Status</Th>
-            <Th />
-          </Thead>
-          <tbody>
-            {records.map((r) => (
-              <Tr key={`${r.userId}:${r.date}`}>
-                <Td>
-                  <Link href={`/admin/attendance/${r.userId}`} className="font-medium text-text hover:text-primary">
-                    {r.fullName}
-                  </Link>
-                </Td>
-                <Td className="capitalize text-muted">{r.role.replace('_', ' ')}</Td>
-                <Td>{r.date}</Td>
-                <Td className="text-muted">{formatScheduledTime(r.scheduledStartTime)}</Td>
-                <Td>{formatTime(r.checkInAt)}</Td>
-                <Td className="text-muted">{r.lateMinutes > 0 ? formatMinutes(r.lateMinutes) : 'No'}</Td>
-                <Td className="text-muted">{formatScheduledTime(r.scheduledEndTime)}</Td>
-                <Td>{formatTime(r.checkOutAt)}</Td>
-                <Td className="text-muted">{r.earlyCheckoutMinutes > 0 ? formatMinutes(r.earlyCheckoutMinutes) : 'No'}</Td>
-                <Td className="text-muted">{formatMinutes(r.breakMinutes)}</Td>
-                <Td>
-                  <LiveWorkedMinutes
-                    checkInAt={r.checkInAt}
-                    breakMinutes={r.breakMinutes}
-                    isLive={r.status === 'currently_working'}
-                    initialMinutes={r.workedMinutes}
-                  />
-                </Td>
-                <Td className="text-muted">{formatMinutes(r.overtimeMinutes)}</Td>
-                <Td>
-                  <AttendanceStatusPill status={r.status} />
-                </Td>
-                <Td align="right">{r.recordId && (
-                  <EditAttendanceButton
-                    recordId={r.recordId}
-                    date={r.date}
-                    checkInAt={r.checkInAt}
-                    checkOutAt={r.checkOutAt}
-                    breakMinutes={r.breakMinutes}
-                  />
-                )}</Td>
-              </Tr>
-            ))}
-          </tbody>
-        </Table>
-        {records.length === 0 && <EmptyState>No attendance records match these filters.</EmptyState>}
-      </TableWrap>
+      {tab === 'overview' && overview && <OverviewSection items={overview.items} />}
+      {tab === 'matrix' && matrix && <AttendanceMatrix items={matrix.items} days={matrix.days} />}
+      {tab === 'records' && records && <RecordsSection items={records.items} />}
+
+      <Pager page={active.page} total={active.total} pageSize={active.pageSize} basePath="/admin/attendance" searchParams={pagerQuery} />
     </AppShell>
   );
 }

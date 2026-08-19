@@ -64,6 +64,16 @@ export function formatTime(iso: string | null | undefined): string {
   });
 }
 
+/** "Today" in APP_TIMEZONE — used to default date/month filter inputs so a server-rendered
+ * page shows the same "today" the backend resolves to (the Node process itself may be in UTC). */
+export function todayIST(): string {
+  return new Intl.DateTimeFormat('en-CA', { timeZone: DISPLAY_TIMEZONE }).format(new Date());
+}
+
+export function currentMonthIST(): string {
+  return todayIST().slice(0, 7);
+}
+
 export function formatScheduledTime(hhmm: string | null | undefined): string {
   if (!hhmm) return '—';
   const [h, m] = hhmm.split(':').map(Number);

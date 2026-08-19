@@ -45,6 +45,13 @@ export class UsersController {
     return this.usersService.listManagers();
   }
 
+  @UseGuards(RolesGuard)
+  @Roles(UserRole.super_admin)
+  @Get('directory')
+  listDirectory() {
+    return this.usersService.listDirectory();
+  }
+
   @Patch('me/status')
   updateMyStatus(@CurrentUser() user: { userId: string }, @Body() dto: UpdateStatusDto) {
     return this.usersService.updateStatus(user.userId, dto.status);

@@ -150,6 +150,15 @@ export class UsersService {
     });
   }
 
+  /** Minimal fields for admin filter dropdowns (e.g. Attendance) — avoids over-fetching the full user list. */
+  listDirectory(): Promise<Pick<User, 'id' | 'fullName' | 'department' | 'role'>[]> {
+    return this.prisma.user.findMany({
+      where: { isActive: true },
+      select: { id: true, fullName: true, department: true, role: true },
+      orderBy: { fullName: 'asc' },
+    });
+  }
+
   listTeamStatus(): Promise<Pick<User, 'id' | 'fullName' | 'role' | 'currentStatus'>[]> {
     return this.prisma.user.findMany({
       where: { isActive: true },

@@ -20,6 +20,11 @@ function parseBool(value?: string): boolean | undefined {
   return value === 'true';
 }
 
+function parsePage(value: string | undefined, fallback: number): number {
+  const n = value ? parseInt(value, 10) : NaN;
+  return Number.isFinite(n) && n > 0 ? n : fallback;
+}
+
 @ApiTags('attendance')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard)
@@ -155,11 +160,58 @@ export class AttendanceController {
 
   @UseGuards(RolesGuard)
   @Roles(UserRole.super_admin)
+  @Get('admin/overview')
+  adminOverview(
+    @Query('employeeId') employeeId?: string,
+    @Query('department') department?: string,
+    @Query('role') role?: string,
+    @Query('search') search?: string,
+    @Query('date') date?: string,
+    @Query('page') page?: string,
+    @Query('pageSize') pageSize?: string,
+  ) {
+    return this.attendanceService.adminOverview({
+      employeeId,
+      department,
+      role,
+      search,
+      date,
+      page: parsePage(page, 1),
+      pageSize: parsePage(pageSize, 20),
+    });
+  }
+
+  @UseGuards(RolesGuard)
+  @Roles(UserRole.super_admin)
+  @Get('admin/matrix')
+  adminMatrix(
+    @Query('employeeId') employeeId?: string,
+    @Query('department') department?: string,
+    @Query('role') role?: string,
+    @Query('search') search?: string,
+    @Query('month') month?: string,
+    @Query('page') page?: string,
+    @Query('pageSize') pageSize?: string,
+  ) {
+    return this.attendanceService.adminMatrix({
+      employeeId,
+      department,
+      role,
+      search,
+      month,
+      page: parsePage(page, 1),
+      pageSize: parsePage(pageSize, 15),
+    });
+  }
+
+  @UseGuards(RolesGuard)
+  @Roles(UserRole.super_admin)
   @Get('admin/records')
   adminRecords(
     @Query('employeeId') employeeId?: string,
     @Query('department') department?: string,
     @Query('role') role?: string,
+    @Query('search') search?: string,
     @Query('date') date?: string,
     @Query('from') from?: string,
     @Query('to') to?: string,
@@ -169,11 +221,14 @@ export class AttendanceController {
     @Query('onlyEarlyCheckout') onlyEarlyCheckout?: string,
     @Query('onlyOvertime') onlyOvertime?: string,
     @Query('onlyCurrentlyWorking') onlyCurrentlyWorking?: string,
+    @Query('page') page?: string,
+    @Query('pageSize') pageSize?: string,
   ) {
     return this.attendanceService.adminListRecords({
       employeeId,
       department,
       role,
+      search,
       date,
       from,
       to,
@@ -183,6 +238,8 @@ export class AttendanceController {
       onlyEarlyCheckout: parseBool(onlyEarlyCheckout),
       onlyOvertime: parseBool(onlyOvertime),
       onlyCurrentlyWorking: parseBool(onlyCurrentlyWorking),
+      page: parsePage(page, 1),
+      pageSize: parsePage(pageSize, 50),
     });
   }
 

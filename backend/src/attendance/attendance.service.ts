@@ -324,12 +324,42 @@ export class AttendanceService {
   // Super admin: summary, cross-employee table, employee detail, analytics
   // ==========================================================================
 
-  private async activeEmployees(filters: { employeeId?: string; department?: string; role?: string } = {}): Promise<User[]> {
+  /**
+   * Without `pagination`, returns every matching active user (used by adminSummary, which needs
+   * company-wide totals, not a page). With it, returns one bounded page plus the total match
+   * count — the shared foundation every paginated admin list (overview/matrix/records) builds on.
+   */
+  private async activeEmployees(
+    filters: { employeeId?: string; department?: string; role?: string; search?: string } = {},
+    pagination?: { page: number; pageSize: number },
+  ): Promise<{ users: User[]; total: number }> {
     const where: Record<string, unknown> = { isActive: true };
     if (filters.employeeId) where.id = filters.employeeId;
     if (filters.department) where.department = filters.department;
     if (filters.role) where.role = filters.role;
-    return this.prisma.user.findMany({ where, orderBy: { fullName: 'asc' } });
+    if (filters.search) where.fullName = { contains: filters.search };
+
+    // `id` as a secondary sort key makes this deterministic across separate query executions —
+    // `fullName` alone ties whenever two users share a name, and MySQL doesn't guarantee a
+    // stable order for ties, which silently corrupts skip/take pagination (a user can shift
+    // between pages, or appear on two pages, between one request and the next).
+    const orderBy = [{ fullName: 'asc' as const }, { id: 'asc' as const }];
+
+    if (!pagination) {
+      const users = await this.prisma.user.findMany({ where, orderBy });
+      return { users, total: users.length };
+    }
+
+    const [users, total] = await Promise.all([
+      this.prisma.user.findMany({
+        where,
+        orderBy,
+        skip: (pagination.page - 1) * pagination.pageSize,
+        take: pagination.pageSize,
+      }),
+      this.prisma.user.count({ where }),
+    ]);
+    return { users, total };
   }
 
   private async dayViewsForUsers(users: User[], from: string, to: string): Promise<AttendanceDayView[]> {
@@ -389,7 +419,7 @@ export class AttendanceService {
     onLeaveToday: number;
     overtimeToday: { count: number; totalMinutes: number };
   }> {
-    const users = await this.activeEmployees();
+    const { users } = await this.activeEmployees();
     const views = await this.dayViewsForUsers(users, date, date);
 
     return {
@@ -407,10 +437,91 @@ export class AttendanceService {
     };
   }
 
+  /** One row per employee for a single day — the Overview tab. Paginated by employee. */
+  async adminOverview(filters: {
+    employeeId?: string;
+    department?: string;
+    role?: string;
+    search?: string;
+    date?: string;
+    page?: number;
+    pageSize?: number;
+  }): Promise<{
+    items: Array<AttendanceDayView & { fullName: string; role: string; department: string | null }>;
+    total: number;
+    page: number;
+    pageSize: number;
+  }> {
+    const page = filters.page ?? 1;
+    const pageSize = filters.pageSize ?? 20;
+    const date = filters.date ?? todayDateString();
+
+    const { users, total } = await this.activeEmployees(filters, { page, pageSize });
+    const views = await this.dayViewsForUsers(users, date, date);
+    const userById = new Map(users.map((u) => [u.id, u]));
+
+    const items = views
+      .map((v) => {
+        const u = userById.get(v.userId)!;
+        return { ...v, fullName: u.fullName, role: u.role, department: u.department };
+      })
+      .sort((a, b) => a.fullName.localeCompare(b.fullName));
+
+    return { items, total, page, pageSize };
+  }
+
+  /** One row per employee, one cell per day of the month — the Matrix tab. Paginated by employee. */
+  async adminMatrix(filters: {
+    employeeId?: string;
+    department?: string;
+    role?: string;
+    search?: string;
+    month?: string;
+    page?: number;
+    pageSize?: number;
+  }): Promise<{
+    items: Array<{
+      userId: string;
+      fullName: string;
+      role: string;
+      department: string | null;
+      cells: Array<{ status: AttendanceStatus; lateMinutes: number }>;
+    }>;
+    days: string[];
+    total: number;
+    page: number;
+    pageSize: number;
+  }> {
+    const page = filters.page ?? 1;
+    const pageSize = filters.pageSize ?? 15;
+    const { from, to } = firstAndLastDayOfMonth(filters.month ?? todayDateString().slice(0, 7));
+    const days = dateRangeInclusive(from, to);
+
+    const { users, total } = await this.activeEmployees(filters, { page, pageSize });
+    const views = await this.dayViewsForUsers(users, from, to);
+    const viewByUserDate = new Map(views.map((v) => [`${v.userId}:${v.date}`, v]));
+
+    const items = users
+      .map((u) => ({
+        userId: u.id,
+        fullName: u.fullName,
+        role: u.role,
+        department: u.department,
+        cells: days.map((date) => {
+          const v = viewByUserDate.get(`${u.id}:${date}`);
+          return { status: v?.status ?? AttendanceStatus.absent, lateMinutes: v?.lateMinutes ?? 0 };
+        }),
+      }))
+      .sort((a, b) => a.fullName.localeCompare(b.fullName));
+
+    return { items, days, total, page, pageSize };
+  }
+
   async adminListRecords(filters: {
     employeeId?: string;
     department?: string;
     role?: string;
+    search?: string;
     date?: string;
     from?: string;
     to?: string;
@@ -420,8 +531,17 @@ export class AttendanceService {
     onlyEarlyCheckout?: boolean;
     onlyOvertime?: boolean;
     onlyCurrentlyWorking?: boolean;
-  }): Promise<Array<AttendanceDayView & { fullName: string; role: string; department: string | null }>> {
-    const users = await this.activeEmployees(filters);
+    page?: number;
+    pageSize?: number;
+  }): Promise<{
+    items: Array<AttendanceDayView & { fullName: string; role: string; department: string | null }>;
+    total: number;
+    page: number;
+    pageSize: number;
+  }> {
+    const page = filters.page ?? 1;
+    const pageSize = filters.pageSize ?? 50;
+    const { users, total } = await this.activeEmployees(filters, { page, pageSize });
     const { from, to } = filters.date
       ? { from: filters.date, to: filters.date }
       : this.resolveRange(filters);
@@ -435,12 +555,14 @@ export class AttendanceService {
     if (filters.onlyCurrentlyWorking) views = views.filter((v) => v.status === AttendanceStatus.currently_working);
 
     const userById = new Map(users.map((u) => [u.id, u]));
-    return views
+    const items = views
       .map((v) => {
         const u = userById.get(v.userId)!;
         return { ...v, fullName: u.fullName, role: u.role, department: u.department };
       })
       .sort((a, b) => (a.date === b.date ? a.fullName.localeCompare(b.fullName) : a.date < b.date ? 1 : -1));
+
+    return { items, total, page, pageSize };
   }
 
   async employeeDetail(
@@ -549,7 +671,7 @@ export class AttendanceService {
     }>;
     employeeAttendance: Array<{ userId: string; fullName: string; percentage: number }>;
   }> {
-    const users = await this.activeEmployees();
+    const { users } = await this.activeEmployees();
     const views = await this.dayViewsForUsers(users, from, to);
     const dates = dateRangeInclusive(from, to);
 
