@@ -104,6 +104,19 @@ export function combineDateAndTime(date: string, hhmm: string): Date {
   return new Date(guess.getTime() - offsetMinutes * 60000);
 }
 
+/**
+ * Parses a `datetime-local` input value ("YYYY-MM-DDTHH:mm", no timezone offset) as wall-clock
+ * time in APP_TIMEZONE. The naive `new Date(str)` parse instead treats a timezone-less string
+ * as the server process's own local timezone (UTC in Docker) — silently shifting admin-entered
+ * times by the IST/UTC offset (and sometimes onto the wrong calendar day) on save. Use this for
+ * every `datetime-local` value received from a form, the same way combineDateAndTime is used
+ * for "HH:mm" schedule strings.
+ */
+export function parseZonedDateTime(dateTimeLocal: string): Date {
+  const [date, time] = dateTimeLocal.split('T');
+  return combineDateAndTime(date, time);
+}
+
 export function computeLateMinutes(
   scheduledStart: Date | null,
   actualCheckIn: Date,

@@ -16,6 +16,7 @@ import {
   deriveCompletedStatus,
   holidayAppliesToUser,
   isSecondSaturday,
+  parseZonedDateTime,
   resolveSchedule,
   zonedDateString,
 } from './attendance-calculations';
@@ -602,8 +603,10 @@ export class AttendanceService {
       }
     }
 
-    const newCheckInAt = dto.checkInAt !== undefined ? (dto.checkInAt ? new Date(dto.checkInAt) : null) : record.checkInAt;
-    const newCheckOutAt = dto.checkOutAt !== undefined ? (dto.checkOutAt ? new Date(dto.checkOutAt) : null) : record.checkOutAt;
+    const newCheckInAt =
+      dto.checkInAt !== undefined ? (dto.checkInAt ? parseZonedDateTime(dto.checkInAt) : null) : record.checkInAt;
+    const newCheckOutAt =
+      dto.checkOutAt !== undefined ? (dto.checkOutAt ? parseZonedDateTime(dto.checkOutAt) : null) : record.checkOutAt;
     const newBreakMinutes = dto.totalBreakMinutes ?? record.totalBreakMinutes;
 
     if (newCheckOutAt && !newCheckInAt) {

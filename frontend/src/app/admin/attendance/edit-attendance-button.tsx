@@ -7,11 +7,29 @@ import { Field, FieldRow, Input, ErrorText } from '@/components/ui/field';
 import { Button } from '@/components/ui/button';
 import { Panel } from '@/components/ui/panel';
 
+// Must match the backend's APP_TIMEZONE (attendance-calculations.ts). The value this produces
+// is submitted back as a plain "YYYY-MM-DDTHH:mm" string with no timezone info, and the backend
+// re-interprets it as this same zone — so the picker has to show IST regardless of the admin's
+// own machine timezone, or a round-trip edit (open, save with no changes) would shift the time.
+const DISPLAY_TIMEZONE = 'Asia/Kolkata';
+
 function toDatetimeLocal(iso: string | null): string {
   if (!iso) return '';
-  const d = new Date(iso);
-  const pad = (n: number) => String(n).padStart(2, '0');
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: DISPLAY_TIMEZONE,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hourCycle: 'h23',
+  })
+    .formatToParts(new Date(iso))
+    .reduce<Record<string, string>>((acc, p) => {
+      acc[p.type] = p.value;
+      return acc;
+    }, {});
+  return `${parts.year}-${parts.month}-${parts.day}T${parts.hour}:${parts.minute}`;
 }
 
 export function EditAttendanceButton({
