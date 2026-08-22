@@ -4,6 +4,11 @@ services:
     container_name: insights-mysql
     restart: unless-stopped
     environment:
+      # Explicit rather than relying on the base image's default: every DATETIME value written
+      # by CURRENT_TIMESTAMP-backed defaults (Prisma's @default(now())/@updatedAt) is computed
+      # server-side, so the DB's own clock must be UTC for those to line up with the UTC
+      # instants the Node app writes for everything else (checkInAt, checkOutAt, etc).
+      TZ: UTC
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root_password}
       MYSQL_DATABASE: ${DB_DATABASE:-insights_db}
       MYSQL_USER: ${DB_USERNAME:-insights_user}
@@ -29,6 +34,9 @@ services:
     restart: unless-stopped
     environment:
       NODE_ENV: production
+      # The Node process's own clock must be UTC so mysql2's DATETIME <-> Date conversion
+      # (which defaults to the driver's local timezone) round-trips consistently with MySQL's.
+      TZ: UTC
       PORT: 3001
       API_PREFIX: api
       CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:3000}
@@ -42,6 +50,8 @@ services:
       DATABASE_URL: mysql://${DB_USERNAME:-insights_user}:${DB_PASSWORD:-insights_password}@mysql:3306/${DB_DATABASE:-insights_db}
       JWT_SECRET: ${JWT_SECRET:-super_secret_change_me_in_production}
       JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-1d}
+      # Must match the frontend's NEXT_PUBLIC_APP_TIMEZONE below.
+      APP_TIMEZONE: ${APP_TIMEZONE:-Asia/Kolkata}
       SUPER_ADMIN_EMAIL: ${SUPER_ADMIN_EMAIL:-admin@insights.local}
       SUPER_ADMIN_PASSWORD: ${SUPER_ADMIN_PASSWORD:-ChangeMe123!}
       SUPER_ADMIN_NAME: ${SUPER_ADMIN_NAME:-Super Admin}
@@ -59,6 +69,8 @@ services:
       context: ./frontend
       args:
         NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:3001/api}
+        # Must match the backend's APP_TIMEZONE above.
+        NEXT_PUBLIC_APP_TIMEZONE: ${APP_TIMEZONE:-Asia/Kolkata}
     container_name: insights-frontend
     restart: unless-stopped
     environment:

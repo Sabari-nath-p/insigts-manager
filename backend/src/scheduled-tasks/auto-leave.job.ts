@@ -3,7 +3,7 @@ import { Cron } from '@nestjs/schedule';
 import { UsersService } from '../users/users.service';
 import { AttendanceService } from '../attendance/attendance.service';
 import { AttendanceSettingsService } from '../attendance/attendance-settings.service';
-import { holidayAppliesToUser, isSecondSaturday } from '../attendance/attendance-calculations';
+import { holidayAppliesToUser, isSecondSaturday, zonedDateString } from '../attendance/attendance-calculations';
 import { LeavesService } from '../leaves/leaves.service';
 import { WorkingType } from '@prisma/client';
 import { WeekDay } from '../common/week-day';
@@ -73,9 +73,15 @@ export class AutoLeaveJob {
     return { processed: fixedActive.length, marked };
   }
 
+  /**
+   * "Yesterday" in APP_TIMEZONE, not the server process's own timezone or raw UTC — consistent
+   * with how the rest of the attendance module resolves "today"/"yesterday" (zonedDateString).
+   * Computed by taking today's zoned calendar date and stepping back one day in UTC date-math,
+   * which is safe here because we're only manipulating a civil date, not converting an instant.
+   */
   yesterdayDateString(): string {
-    const d = new Date();
-    d.setUTCDate(d.getUTCDate() - 1);
+    const [year, month, day] = zonedDateString().split('-').map(Number);
+    const d = new Date(Date.UTC(year, month - 1, day - 1));
     return d.toISOString().slice(0, 10);
   }
 }

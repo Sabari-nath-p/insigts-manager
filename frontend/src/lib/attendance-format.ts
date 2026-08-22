@@ -53,7 +53,9 @@ export function formatMinutes(mins: number | null | undefined): string {
 // without it, toLocaleTimeString() falls back to the ambient runtime's timezone, which is
 // the browser's for client components but the Node server's (UTC in Docker) for server
 // components — producing different, wrong times depending on where a given page renders.
-const DISPLAY_TIMEZONE = 'Asia/Kolkata';
+// Sourced from NEXT_PUBLIC_APP_TIMEZONE so it can be kept in sync with the backend's
+// APP_TIMEZONE via a single deployment config, instead of two independently-hardcoded values.
+const DISPLAY_TIMEZONE = process.env.NEXT_PUBLIC_APP_TIMEZONE || 'Asia/Kolkata';
 
 export function formatTime(iso: string | null | undefined): string {
   if (!iso) return '—';

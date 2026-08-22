@@ -9,7 +9,7 @@ export function PropertyRow({
   label,
   value,
 }: {
-  label: string;
+  label: React.ReactNode;
   value: React.ReactNode;
 }) {
   return (

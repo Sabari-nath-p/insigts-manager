@@ -6,6 +6,7 @@ import { AppShell } from '@/components/app-shell';
 import { PageHeader, SectionTitle } from '@/components/ui/page-header';
 import { PropertyList, PropertyRow, Metric, MetricStrip } from '@/components/ui/property-row';
 import { Pill } from '@/components/ui/pill';
+import { LocalFullDateTime } from '@/components/ui/local-time';
 import type { BadgeKey } from '@/lib/attendance-format';
 import type { AdminPayrollRecord, PayrollAdjustment, PayrollAuditLogEntry } from '../types';
 import { RecordActions } from './record-actions';
@@ -113,7 +114,7 @@ export default async function AdminPayrollRecordPage({ params }: { params: Promi
         {audit.map((a) => (
           <PropertyRow
             key={a.id}
-            label={new Date(a.changedAt).toLocaleString()}
+            label={<LocalFullDateTime iso={a.changedAt} />}
             value={
               <>
                 <span className="capitalize">{a.action.replace('_', ' ')}</span>

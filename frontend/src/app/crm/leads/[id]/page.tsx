@@ -6,6 +6,7 @@ import { AppShell } from '@/components/app-shell';
 import { PageHeader, SectionTitle } from '@/components/ui/page-header';
 import { PropertyList, PropertyRow, Metric, MetricStrip } from '@/components/ui/property-row';
 import { Pill } from '@/components/ui/pill';
+import { LocalDateTime } from '@/components/ui/local-time';
 import type { Lead, LeadActivity, LeadSource, SalesTeamMember } from '../../types';
 import {
   AGING_LABELS,
@@ -15,7 +16,6 @@ import {
   STATUS_TONE,
   formatCurrency,
   formatDateOnly,
-  formatDateTime,
 } from '@/lib/crm-format';
 import { EditLeadPanel } from './edit-lead-panel';
 import { ActivityFeed } from './activity-feed';
@@ -100,16 +100,16 @@ export default async function LeadDetailPage({ params }: { params: Promise<{ id:
 
       <SectionTitle>Dates</SectionTitle>
       <PropertyList className="mb-8">
-        <PropertyRow label="Created" value={formatDateTime(lead.createdAt)} />
-        <PropertyRow label="First contact" value={formatDateTime(lead.firstContactAt)} />
+        <PropertyRow label="Created" value={<LocalDateTime iso={lead.createdAt} />} />
+        <PropertyRow label="First contact" value={<LocalDateTime iso={lead.firstContactAt} />} />
         <PropertyRow label="Speed to lead" value={lead.speedToLeadMinutes != null ? `${lead.speedToLeadMinutes} min` : '—'} />
-        <PropertyRow label="Meeting booked" value={formatDateTime(lead.meetingBookedAt)} />
+        <PropertyRow label="Meeting booked" value={<LocalDateTime iso={lead.meetingBookedAt} />} />
         <PropertyRow label="Meeting date" value={lead.meetingDate ? `${formatDateOnly(lead.meetingDate)} ${lead.meetingTime ?? ''}` : '—'} />
         <PropertyRow label="Booking lag" value={lead.bookingLagDays != null ? `${lead.bookingLagDays} day(s)` : '—'} />
-        <PropertyRow label="Last touch" value={formatDateTime(lead.lastTouchAt)} />
+        <PropertyRow label="Last touch" value={<LocalDateTime iso={lead.lastTouchAt} />} />
         <PropertyRow label="Next follow-up" value={formatDateOnly(lead.nextFollowUpDate)} />
-        <PropertyRow label="Won" value={formatDateTime(lead.wonAt)} />
-        <PropertyRow label="Lost" value={formatDateTime(lead.lostAt)} />
+        <PropertyRow label="Won" value={<LocalDateTime iso={lead.wonAt} />} />
+        <PropertyRow label="Lost" value={<LocalDateTime iso={lead.lostAt} />} />
       </PropertyList>
 
       <SectionTitle>Meeting</SectionTitle>

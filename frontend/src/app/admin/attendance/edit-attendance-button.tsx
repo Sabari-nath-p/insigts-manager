@@ -11,7 +11,9 @@ import { Panel } from '@/components/ui/panel';
 // is submitted back as a plain "YYYY-MM-DDTHH:mm" string with no timezone info, and the backend
 // re-interprets it as this same zone — so the picker has to show IST regardless of the admin's
 // own machine timezone, or a round-trip edit (open, save with no changes) would shift the time.
-const DISPLAY_TIMEZONE = 'Asia/Kolkata';
+// Sourced from NEXT_PUBLIC_APP_TIMEZONE, the same variable attendance-format.ts reads, so both
+// stay in sync with the backend's APP_TIMEZONE via one deployment config.
+const DISPLAY_TIMEZONE = process.env.NEXT_PUBLIC_APP_TIMEZONE || 'Asia/Kolkata';
 
 function toDatetimeLocal(iso: string | null): string {
   if (!iso) return '';

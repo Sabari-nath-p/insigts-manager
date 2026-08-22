@@ -7,6 +7,7 @@ import { PageHeader, SectionTitle } from '@/components/ui/page-header';
 import { Field, Select, Input } from '@/components/ui/field';
 import { Table, Thead, Th, Tr, Td, TableWrap, EmptyState } from '@/components/ui/table';
 import { Pill } from '@/components/ui/pill';
+import { LocalDate } from '@/components/ui/local-time';
 import { LEAD_STATUSES, type Lead, type LeadSource, type SalesTeamMember } from '../types';
 import { AGING_LABELS, STATUS_LABELS, STATUS_TONE, formatCurrency, formatDateOnly } from '@/lib/crm-format';
 import { NewLeadPanel } from '../new-lead-panel';
@@ -146,7 +147,7 @@ export default async function LeadLogPage({ searchParams }: { searchParams: Prom
                 <Td>
                   <Pill tone={STATUS_TONE[l.status]}>{STATUS_LABELS[l.status]}</Pill>
                 </Td>
-                <Td className="text-muted">{formatDateOnly(l.createdAt.slice(0, 10))}</Td>
+                <Td className="text-muted"><LocalDate iso={l.createdAt} /></Td>
                 <Td className="text-muted">{formatDateOnly(l.meetingDate)}</Td>
                 <Td align="right">{formatCurrency(l.dealValue)}</Td>
                 <Td align="right">{formatCurrency(l.earnings)}</Td>
