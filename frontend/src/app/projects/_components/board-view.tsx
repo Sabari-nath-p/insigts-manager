@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import dynamic from 'next/dynamic';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import {
@@ -18,13 +19,13 @@ import {
 import { SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { Plus } from 'lucide-react';
 import { cn } from '@/lib/cn';
-import { pm } from '@/lib/pm/client';
+import { pm, pollEvery } from '@/lib/pm/client';
 import { FILTER_KEYS, applyFilters, hasFilters, parseFilters, tasksByColumn } from '@/lib/pm/board-logic';
 import { useBoardActions } from '@/lib/pm/use-board-actions';
 import type { BoardData, PmColumn, PmLabel, PmMe, PmTask } from '@/lib/pm/types';
 import { CardBody, SortableTaskCard } from './task-card';
-import { TaskDrawer } from './task-drawer';
-import { ListView } from './list-view';
+const TaskDrawer = dynamic(() => import('./task-drawer').then((m) => m.TaskDrawer), { ssr: false });
+const ListView = dynamic(() => import('./list-view').then((m) => m.ListView), { ssr: false });
 import { BoardHeader } from './board-header';
 import { ColumnMenu } from './column-menu';
 
@@ -46,7 +47,7 @@ export function BoardView({ projectKey, me, initial }: { projectKey: string; me:
     queryKey: boardKey,
     queryFn: () => pm<BoardData>(`/projects/${projectKey}/board${showOlder ? '?olderDone=1' : ''}`),
     initialData: showOlder ? undefined : initial,
-    refetchInterval: () => (document.hidden ? false : 10_000),
+    refetchInterval: pollEvery(10_000),
   });
 
   const memberNames = useMemo(() => new Map(data.members.map((m) => [m.id, m.fullName])), [data.members]);

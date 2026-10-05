@@ -9,7 +9,7 @@ import { MoreHorizontal, X } from 'lucide-react';
 import { cn } from '@/lib/cn';
 import { Avatar } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
-import { pm } from '@/lib/pm/client';
+import { pm, pollEvery } from '@/lib/pm/client';
 import { activityText, relativeTime } from '@/lib/pm/format';
 import type { useBoardActions } from '@/lib/pm/use-board-actions';
 import type { BoardData, PmMe, PmTask, Priority, TaskDetail, TaskUpdate } from '@/lib/pm/types';
@@ -74,7 +74,7 @@ function DrawerBody({
   const { data: detail, isError } = useQuery({
     queryKey: ['task', taskRef],
     queryFn: () => pm<TaskDetail>(`/tasks/${taskRef}`),
-    refetchInterval: () => (document.hidden ? false : 10_000),
+    refetchInterval: pollEvery(10_000),
   });
 
   // Prefer the board's copy: it carries this session's optimistic edits.

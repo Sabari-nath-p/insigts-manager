@@ -81,7 +81,9 @@ async function main() {
       const ageDays = isDone ? Math.floor(rand() * 90) : rand() < 0.12 ? 20 + Math.floor(rand() * 50) : Math.floor(rand() * 18);
       const createdAt = new Date(now - ageDays * DAY - Math.floor(rand() * DAY));
       const startedAt = col.type === 'todo' ? null : new Date(createdAt.getTime() + Math.floor(rand() * 4) * DAY);
-      const completedAt = isDone ? new Date(Math.min(now, (startedAt ?? createdAt).getTime() + (1 + Math.floor(rand() * 12)) * DAY)) : null;
+      const rawDone = (startedAt ?? createdAt).getTime() + (1 + Math.floor(rand() * 12)) * DAY;
+      // Anything that would land in the future is pulled back into the last few days instead of piling up on today.
+      const completedAt = isDone ? new Date(rawDone > now ? now - Math.floor(rand() * 5) * DAY - Math.floor(rand() * DAY) : rawDone) : null;
       const due = rand() < 0.7 ? iso(new Date(isDone ? (completedAt as Date).getTime() + Math.floor(rand() * 12 - 4) * DAY : now + Math.floor(rand() * 17 - 2) * DAY)) : null;
       positions[col.id] = (positions[col.id] ?? 0) + 1000;
 

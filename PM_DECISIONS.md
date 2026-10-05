@@ -5,7 +5,7 @@ One line each: decision, then reason. `PM_BUILD_PLAN.md` is the source brief; wh
 ## Isolation
 - Backend lives in `backend/src/projects/` and routes under `/api/pm/*`. It reads the `users` table and nothing else from other modules, and writes only `pm_*` tables. Reason: attendance and CRM must not be affected.
 - Frontend lives under `/projects/*` (pages) and `/api/pm/*` (proxy route handlers). Reason: separate URL space on the same site.
-- Shared files edited, and only additively: `backend/prisma/schema.prisma` (new models and enums appended), `backend/src/app.module.ts` (one import), `frontend/package.json` and lock (new dependencies), `frontend/src/lib/nav.ts` (one nav link).
+- Shared files edited, and only additively: `backend/prisma/schema.prisma` (new models and enums appended), `backend/src/app.module.ts` (one import), both `package.json` files (scripts, dependencies) and the frontend lockfile, `frontend/src/lib/nav.ts` (one nav link).
 - The migration only contains `CREATE TABLE` for `pm_*`. Verified: no `ALTER` or `DROP`. Reason: existing data stays untouched.
 
 ## Stack deviations from the plan
@@ -34,3 +34,10 @@ One line each: decision, then reason. `PM_BUILD_PLAN.md` is the source brief; wh
 ## Process
 - Work is on branch `projects-module`, one local commit per phase, not pushed.
 - Live notification polling instead of WebSockets, as specified.
+
+## Docs and tests
+- Module docs are in `PROJECTS.md`, not the root README. Reason: the root README belongs to the existing app.
+- Backend has no ESLint config, so there is no backend lint step to run. `tsc --noEmit` and jest are the checks.
+- Playwright tests create their own users and projects, so they only run against a disposable database.
+- No workspace-isolation test: there is one workspace (the whole company), so there is nothing to isolate. Access control is covered by the permission and e2e tests.
+- No invite, password-reset or avatar flows, and no email notifier. Accounts, passwords and profile live in the existing app. Reason: out of scope once users are shared.

@@ -8,7 +8,7 @@ import { useQuery } from '@tanstack/react-query';
 import * as Popover from '@radix-ui/react-popover';
 import { Download, Info } from 'lucide-react';
 import { cn } from '@/lib/cn';
-import { pm, qs } from '@/lib/pm/client';
+import { pm, qs, pollEvery } from '@/lib/pm/client';
 import { PRIORITY_COLOR, PRIORITY_LABEL, formatDue, relativeTime, activityText } from '@/lib/pm/format';
 import type { InsightsData, MyStats, PmProject, TaskActivity } from '@/lib/pm/types';
 
@@ -389,7 +389,7 @@ function ActivityFeed({ project, member, projects }: { project?: string; member?
   const { data = [] } = useQuery({
     queryKey: ['pm-activity', project ?? '', member ?? ''],
     queryFn: () => pm<Array<TaskActivity & { projectId: string }>>(`/activity${qs({ project, member })}`),
-    refetchInterval: () => (document.hidden ? false : 30_000),
+    refetchInterval: pollEvery(30_000),
   });
   const keys = new Map(projects.map((p) => [p.id, p.key]));
   return (

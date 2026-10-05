@@ -7,7 +7,7 @@ import { MessageSquarePlus } from 'lucide-react';
 import { cn } from '@/lib/cn';
 import { Button } from '@/components/ui/button';
 import { PRIORITY_COLOR, PRIORITY_LABEL, formatDue } from '@/lib/pm/format';
-import { pm } from '@/lib/pm/client';
+import { pm, pollEvery } from '@/lib/pm/client';
 import type { MyWorkData, PmTask } from '@/lib/pm/types';
 import { useToast } from './providers';
 
@@ -26,7 +26,7 @@ export function MyWorkView({ initial }: { initial: MyWorkData }) {
     queryKey: ['my-work'],
     queryFn: () => pm<MyWorkData>('/my-work'),
     initialData: initial,
-    refetchInterval: () => (document.hidden ? false : 10_000),
+    refetchInterval: pollEvery(10_000),
   });
   const [updating, setUpdating] = useState<string | null>(null);
   const [body, setBody] = useState('');

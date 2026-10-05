@@ -6,6 +6,8 @@ export async function pm<T>(path: string, init: { method?: string; body?: unknow
     method: init.method ?? 'GET',
     headers: { 'Content-Type': 'application/json' },
     body: init.body === undefined ? undefined : JSON.stringify(init.body),
+    // Writes survive a reload or navigation that happens right after the action.
+    keepalive: init.method !== undefined && init.method !== 'GET',
   });
   const text = await res.text();
   let data: unknown = null;
@@ -26,4 +28,9 @@ export function qs(params: Record<string, string | undefined | null>): string {
   for (const [k, v] of Object.entries(params)) if (v) sp.set(k, v);
   const s = sp.toString();
   return s ? `?${s}` : '';
+}
+
+/** react-query refetchInterval that pauses while the tab is hidden. Safe during server rendering. */
+export function pollEvery(ms: number): () => number | false {
+  return () => (typeof document !== 'undefined' && document.hidden ? false : ms);
 }

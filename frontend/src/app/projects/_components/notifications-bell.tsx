@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import * as Popover from '@radix-ui/react-popover';
 import { Bell } from 'lucide-react';
-import { pm } from '@/lib/pm/client';
+import { pm, pollEvery } from '@/lib/pm/client';
 import { relativeTime } from '@/lib/pm/format';
 import type { PmNotification } from '@/lib/pm/types';
 
@@ -20,7 +20,7 @@ export function NotificationsBell() {
   const { data } = useQuery({
     queryKey: ['pm-notifications'],
     queryFn: () => pm<{ unread: number; items: PmNotification[] }>('/notifications'),
-    refetchInterval: () => (document.hidden ? false : 20_000),
+    refetchInterval: pollEvery(20_000),
   });
   const markAll = useMutation({
     mutationFn: () => pm('/notifications/read-all', { method: 'POST' }),

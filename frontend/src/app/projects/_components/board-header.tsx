@@ -118,7 +118,7 @@ export function BoardHeader({
             className="h-8 w-40 rounded-md border border-border bg-surface pl-7 pr-2 text-sm text-text outline-none placeholder:text-muted focus:border-primary sm:w-48"
           />
         </div>
-        <select aria-label="Assignee" className={SELECT} value={filters.assignee ?? ''} onChange={(e) => setParam('assignee', e.target.value || null)}>
+        <select aria-label="Filter by assignee" className={SELECT} value={filters.assignee ?? ''} onChange={(e) => setParam('assignee', e.target.value || null)}>
           <option value="">Anyone</option>
           <option value="me">Me</option>
           <option value="none">Unassigned</option>
@@ -128,14 +128,14 @@ export function BoardHeader({
             </option>
           ))}
         </select>
-        <select aria-label="Priority" className={SELECT} value={filters.priority ?? ''} onChange={(e) => setParam('priority', e.target.value || null)}>
+        <select aria-label="Filter by priority" className={SELECT} value={filters.priority ?? ''} onChange={(e) => setParam('priority', e.target.value || null)}>
           <option value="">Any priority</option>
           <option value="urgent">Urgent</option>
           <option value="high">High</option>
           <option value="medium">Medium</option>
           <option value="low">Low</option>
         </select>
-        <select aria-label="Label" className={SELECT} value={filters.label ?? ''} onChange={(e) => setParam('label', e.target.value || null)}>
+        <select aria-label="Filter by label" className={SELECT} value={filters.label ?? ''} onChange={(e) => setParam('label', e.target.value || null)}>
           <option value="">Any label</option>
           {data.labels.map((l) => (
             <option key={l.id} value={l.id}>
@@ -143,7 +143,7 @@ export function BoardHeader({
             </option>
           ))}
         </select>
-        <select aria-label="Due date" className={SELECT} value={filters.due ?? ''} onChange={(e) => setParam('due', e.target.value || null)}>
+        <select aria-label="Filter by due date" className={SELECT} value={filters.due ?? ''} onChange={(e) => setParam('due', e.target.value || null)}>
           <option value="">Any due date</option>
           <option value="overdue">Overdue</option>
           <option value="week">Due this week</option>

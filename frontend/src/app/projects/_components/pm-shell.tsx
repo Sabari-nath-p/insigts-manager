@@ -2,18 +2,21 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
+import dynamic from 'next/dynamic';
 import { usePathname, useRouter } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import * as Dialog from '@radix-ui/react-dialog';
 import { ArrowLeft, BarChart3, CheckSquare, Menu, Plus, Search, Users2, X } from 'lucide-react';
 import { cn } from '@/lib/cn';
 import { Avatar } from '@/components/ui/avatar';
-import { pm } from '@/lib/pm/client';
+import { pm, pollEvery } from '@/lib/pm/client';
 import type { PmMe, PmProject } from '@/lib/pm/types';
 import { NotificationsBell } from './notifications-bell';
-import { CommandPalette } from './command-palette';
-import { NewProjectDialog } from './new-project-dialog';
-import { ShortcutSheet } from './shortcut-sheet';
+
+// Opened on demand only, so they stay out of the initial bundle.
+const CommandPalette = dynamic(() => import('./command-palette').then((m) => m.CommandPalette), { ssr: false });
+const NewProjectDialog = dynamic(() => import('./new-project-dialog').then((m) => m.NewProjectDialog), { ssr: false });
+const ShortcutSheet = dynamic(() => import('./shortcut-sheet').then((m) => m.ShortcutSheet), { ssr: false });
 
 const LAST_PROJECT_KEY = 'pm:lastProject';
 
@@ -36,7 +39,7 @@ export function PmShell({ me, initialProjects, children }: { me: PmMe; initialPr
     queryKey: ['projects'],
     queryFn: () => pm<PmProject[]>('/projects'),
     initialData: initialProjects,
-    refetchInterval: () => (document.hidden ? false : 30_000),
+    refetchInterval: pollEvery(30_000),
   });
   const active = projects.filter((p) => p.status === 'active');
 
