@@ -185,6 +185,11 @@ export class ProjectsController {
     return this.tasks.markRead(actor.userId, id);
   }
 
+  @Get('search')
+  search(@Query('q') q = '') {
+    return this.tasks.search(q);
+  }
+
   @Get('members')
   members() {
     return this.tasks.members();

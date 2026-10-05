@@ -383,6 +383,27 @@ export class TasksService {
     return { groups, columns };
   }
 
+  /** Palette search: tasks by title or KEY-12 reference. */
+  async search(q: string) {
+    const text = q.trim();
+    if (!text) return [];
+    const ref = text.match(TASK_REF_RE);
+    const projects = await this.prisma.pmProject.findMany({ select: { id: true, key: true } });
+    const keyById = new Map(projects.map((p) => [p.id, p.key]));
+    const rows = await this.prisma.pmTask.findMany({
+      where: {
+        archivedAt: null,
+        OR: [
+          { title: { contains: text } },
+          ...(ref ? [{ number: Number(ref[2]), projectId: projects.find((p) => p.key === ref[1].toUpperCase())?.id ?? '' }] : []),
+        ],
+      },
+      orderBy: { updatedAt: 'desc' },
+      take: 8,
+    });
+    return rows.map((t) => ({ id: t.id, ref: `${keyById.get(t.projectId)}-${t.number}`, projectKey: keyById.get(t.projectId) ?? '', title: t.title }));
+  }
+
   // --- Notifications -----------------------------------------------------
 
   async notifications(userId: string) {

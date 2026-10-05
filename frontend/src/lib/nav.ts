@@ -17,6 +17,7 @@ import {
   Target,
   KanbanSquare,
   AlertTriangle,
+  FolderKanban,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -48,6 +49,7 @@ export const NAV_SECTIONS: NavSection[] = [
     items: [
       { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
       { href: '/clients', label: 'Clients', icon: Building2 },
+      { href: '/projects', label: 'Projects', icon: FolderKanban },
       { href: '/attendance', label: 'My Attendance', icon: Clock },
       { href: '/leaves', label: 'My Leaves', icon: CalendarDays },
       { href: '/worklogs', label: 'Daily Work Log', icon: NotebookPen },

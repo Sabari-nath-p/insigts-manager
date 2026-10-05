@@ -284,3 +284,5 @@ UPLOAD_DIR=./uploads
 - `README.md`, `DECISIONS.md` and `PROGRESS.md` are complete and accurate.
 
 **Start now with Phase 1. Do not ask for confirmation.**
+<!-- 
+DATABASE_URL="mysql://root:pmtest@127.0.0.1:3399/pm_test" PORT=3011 JWT_SECRET=testsecret SUPER_ADMIN_EMAIL=admin@test.local SUPER_ADMIN_PASSWORD='ChangeMe123!' SUPER_ADMIN_NAME='Test Admin' SUPER_ADMIN_PHONE=1111111111 TZ=UTC node dist/main.js -->

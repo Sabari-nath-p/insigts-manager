@@ -118,10 +118,13 @@ export class InsightsService {
         WHERE ${openWhere} AND ${lastChange} < ${stuckCutoff} ${scope}
         ORDER BY changedAt ASC LIMIT 200`,
       this.prisma.$queryRaw<Array<{ id: string; projectId: string; number: number; title: string; assigneeId: string | null; dueDate: string }>>`
-        SELECT t.id AS id, t.projectId AS projectId, t.number AS number, t.title AS title, t.assigneeId AS assigneeId, t.dueDate AS dueDate
-        FROM pm_tasks t JOIN pm_columns c ON c.id = t.columnId
-        WHERE ${openWhere} AND t.dueDate IS NOT NULL AND t.dueDate <= ${addDays(today, 14)} ${scope}
-        ORDER BY t.dueDate ASC LIMIT 200`,
+        (SELECT t.id AS id, t.projectId AS projectId, t.number AS number, t.title AS title, t.assigneeId AS assigneeId, t.dueDate AS dueDate
+          FROM pm_tasks t JOIN pm_columns c ON c.id = t.columnId
+          WHERE ${openWhere} AND t.dueDate < ${today} ${scope} ORDER BY t.dueDate DESC LIMIT 15)
+        UNION ALL
+        (SELECT t.id AS id, t.projectId AS projectId, t.number AS number, t.title AS title, t.assigneeId AS assigneeId, t.dueDate AS dueDate
+          FROM pm_tasks t JOIN pm_columns c ON c.id = t.columnId
+          WHERE ${openWhere} AND t.dueDate >= ${today} AND t.dueDate <= ${addDays(today, 14)} ${scope} ORDER BY t.dueDate ASC LIMIT 100)`,
       this.prisma.$queryRaw<Array<{ priority: string; v: bigint }>>`
         SELECT t.priority AS priority, COUNT(*) AS v FROM pm_tasks t JOIN pm_columns c ON c.id = t.columnId
         WHERE ${openWhere} ${scope} GROUP BY t.priority`,
@@ -218,13 +221,16 @@ export class InsightsService {
       .filter((r) => !r.archived)
       .sort((a, b) => a.name.localeCompare(b.name));
 
+    const stuckTotal = healthRows.reduce((sum, r) => sum + n(r.stuck), 0);
+    const overdueTotal = n(overdueRow[0]?.v);
+    const upcoming = dueSoon.filter((d) => !d.overdue).length;
     const idleFiveDaysInReview = stuck.filter((s) => s.column.toLowerCase().includes('review')).length;
     const takeaways = {
       throughput: completed === 0 ? 'No completed tasks in this range.' : `${plural(completed, 'task')} completed in this range${pctChange(completed, completedPrev) === null ? '' : `, ${pctChange(completed, completedPrev)! >= 0 ? 'up' : 'down'} ${Math.abs(pctChange(completed, completedPrev)!)}% on the previous period`}.`,
       burnup: `${plural(burn.created.at(-1) ?? 0, 'task')} created and ${plural(burn.completed.at(-1) ?? 0, 'task')} completed in this range.`,
-      stuck: stuck.length === 0 ? 'Nothing has been idle for more than 5 days.' : `${plural(stuck.length, 'task')} ${stuck.length === 1 ? 'has' : 'have'} not moved or been updated in more than 5 days${idleFiveDaysInReview ? `, ${idleFiveDaysInReview} of them in Review` : ''}.`,
+      stuck: stuckTotal === 0 ? 'Nothing has been idle for more than 5 days.' : `${plural(stuckTotal, 'task')} ${stuckTotal === 1 ? 'has' : 'have'} not moved or been updated in more than 5 days${idleFiveDaysInReview && stuck.length === stuckTotal ? `, ${idleFiveDaysInReview} of them in Review` : ''}.`,
       workload: workload ? (workload.some((w) => w.highLoad) ? `${workload.filter((w) => w.highLoad).map((w) => w.name).join(', ')} ${workload.filter((w) => w.highLoad).length === 1 ? 'has' : 'have'} more than 1.5x the average open work.` : 'Open work is spread evenly across the team.') : null,
-      due: dueSoon.length === 0 ? 'Nothing is due in the next 14 days.' : `${plural(dueSoon.filter((d) => d.overdue).length, 'task')} overdue and ${plural(dueSoon.filter((d) => !d.overdue).length, 'task')} due in the next 14 days.`,
+      due: overdueTotal === 0 && upcoming === 0 ? 'Nothing is due in the next 14 days.' : `${plural(overdueTotal, 'task')} overdue and ${upcoming >= 100 ? '100+ tasks' : plural(upcoming, 'task')} due in the next 14 days.`,
     };
 
     return {
