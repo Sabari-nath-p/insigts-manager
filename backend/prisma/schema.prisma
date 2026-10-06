@@ -1151,3 +1151,41 @@ model PmNotification {
   @@index([userId, readAt, createdAt])
   @@map("pm_notifications")
 }
+
+// ==========================================================================
+// Workspace notifications (app_notifications, push_subscriptions)
+//
+// Cross-cutting alerts: presence changes (started / paused / resumed) and the daily
+// login reminder. Standalone tables; they reference users only by scalar id.
+// ==========================================================================
+
+model AppNotification {
+  id        String    @id @default(uuid())
+  userId    String
+  type      String    @db.VarChar(40)
+  title     String    @db.VarChar(200)
+  body      String?   @db.VarChar(500)
+  link      String?   @db.VarChar(300)
+  actorId   String?
+  readAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId, readAt, createdAt])
+  @@index([actorId, type, createdAt])
+  @@map("app_notifications")
+}
+
+/// One row per browser/device that opted in to push alerts.
+model PushSubscription {
+  id           String   @id @default(uuid())
+  userId       String
+  endpointHash String   @unique @db.Char(64)
+  endpoint     String   @db.Text
+  p256dh       String   @db.VarChar(200)
+  auth         String   @db.VarChar(100)
+  userAgent    String?  @db.VarChar(300)
+  createdAt    DateTime @default(now())
+
+  @@index([userId])
+  @@map("push_subscriptions")
+}

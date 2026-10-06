@@ -16,6 +16,8 @@ import { KnowledgeBaseModule } from './knowledge-base/knowledge-base.module';
 import { ClientsModule } from './clients/clients.module';
 import { PayrollModule } from './payroll/payroll.module';
 import { ProjectsModule } from './projects/projects.module';
+import { NotificationsModule } from './notifications/notifications.module';
+import { LoginReminderModule } from './notifications/login-reminder.module';
 
 @Module({
   imports: [
@@ -36,6 +38,8 @@ import { ProjectsModule } from './projects/projects.module';
     ClientsModule,
     PayrollModule,
     ProjectsModule,
+    NotificationsModule,
+    LoginReminderModule,
   ],
   controllers: [AppController],
   providers: [AppService],

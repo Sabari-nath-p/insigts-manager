@@ -41,3 +41,10 @@ One line each: decision, then reason. `PM_BUILD_PLAN.md` is the source brief; wh
 - Playwright tests create their own users and projects, so they only run against a disposable database.
 - No workspace-isolation test: there is one workspace (the whole company), so there is nothing to isolate. Access control is covered by the permission and e2e tests.
 - No invite, password-reset or avatar flows, and no email notifier. Accounts, passwords and profile live in the existing app. Reason: out of scope once users are shared.
+
+## Notifications (branch notifications)
+- Browser push uses free Web Push with VAPID keys; no paid provider. Reason: asked for no cost.
+- Presence announcements fire from the two places a status is saved (attendance sync and the manual status endpoint), via a global notifications module with no dependency on attendance. Reason: smallest edit to existing modules, no circular imports.
+- Announced: started, paused, resumed. Silent: meeting, leave, check-out, work logs. Reason: what was asked; one function to widen.
+- Reminder and Projects due-date job both run at 10:00 company time (APP_TIMEZONE) and are registered at startup, not with decorators, so the timezone comes from the loaded environment.
+- Projects due-date job now also sends "due today" besides "due tomorrow".

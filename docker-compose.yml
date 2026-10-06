@@ -56,6 +56,11 @@ services:
       SUPER_ADMIN_PASSWORD: ${SUPER_ADMIN_PASSWORD:-ChangeMe123!}
       SUPER_ADMIN_NAME: ${SUPER_ADMIN_NAME:-Super Admin}
       SUPER_ADMIN_PHONE: ${SUPER_ADMIN_PHONE:-0000000000}
+      # Browser push notifications. Generate once with `npm run notifications:keys` in backend/,
+      # then put the keys in .env. Blank disables push; in-app notifications still work.
+      VAPID_PUBLIC_KEY: ${VAPID_PUBLIC_KEY:-}
+      VAPID_PRIVATE_KEY: ${VAPID_PRIVATE_KEY:-}
+      VAPID_SUBJECT: ${VAPID_SUBJECT:-mailto:admin@insights.local}
     ports:
       - '3001:3001'
     depends_on:

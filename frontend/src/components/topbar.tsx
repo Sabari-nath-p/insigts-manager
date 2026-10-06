@@ -1,13 +1,14 @@
 'use client';
 
 import { usePathname } from 'next/navigation';
-import { Bell, ChevronRight, Menu, Moon, Sun } from 'lucide-react';
+import { ChevronRight, Menu, Moon, Sun } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { findNavItem } from '@/lib/nav';
 import { Avatar } from '@/components/ui/avatar';
 import { Menu as DMenu, MenuTrigger, MenuContent, MenuItem, MenuLabel, MenuSeparator } from '@/components/ui/dropdown-menu';
 import { SignOutButton } from '@/components/sign-out-button';
 import { CommandSearch } from '@/components/command-search';
+import { NotificationCenter } from '@/components/notification-center';
 import type { SessionUser } from '@/lib/session';
 
 function readCurrentTheme(): 'light' | 'dark' {
@@ -63,13 +64,7 @@ export function Topbar({
         <div className="hidden sm:block">
           <CommandSearch />
         </div>
-        <button
-          type="button"
-          className="flex h-8 w-8 items-center justify-center rounded-md text-muted transition-colors hover:bg-black/[0.04] dark:hover:bg-white/[0.06]"
-          aria-label="Notifications"
-        >
-          <Bell size={17} />
-        </button>
+        <NotificationCenter />
 
         <DMenu>
           <MenuTrigger asChild>

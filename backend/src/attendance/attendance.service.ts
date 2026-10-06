@@ -21,6 +21,7 @@ import {
   zonedDateString,
 } from './attendance-calculations';
 import { LeavesService } from '../leaves/leaves.service';
+import { NotificationsService } from '../notifications/notifications.service';
 
 /** "Today" in the company's operating timezone (APP_TIMEZONE) — not the server process's local date or UTC. */
 function todayDateString(): string {
@@ -83,10 +84,13 @@ export class AttendanceService {
     private readonly prisma: PrismaService,
     private readonly settingsService: AttendanceSettingsService,
     private readonly leavesService: LeavesService,
+    private readonly notifications: NotificationsService,
   ) {}
 
   private async syncPresence(userId: string, status: PresenceStatus): Promise<void> {
+    const before = await this.prisma.user.findUnique({ where: { id: userId }, select: { currentStatus: true } });
     await this.prisma.user.update({ where: { id: userId }, data: { currentStatus: status } });
+    this.notifications.presenceChanged(userId, before?.currentStatus, status);
   }
 
   private async getUserOrFail(userId: string): Promise<User> {
