@@ -987,3 +987,167 @@ model SalesTeamMember {
 
   @@map("sales_team_members")
 }
+
+// ==========================================================================
+// Project management (pm_*)
+//
+// Self-contained: these tables reference `users.id` only through plain scalar columns
+// (no Prisma relations, same as the rest of the schema) and never alter existing tables.
+// ==========================================================================
+
+enum PmMemberRole {
+  admin
+  staff
+}
+
+enum PmColumnType {
+  todo
+  doing
+  review
+  done
+}
+
+enum PmPriority {
+  low
+  medium
+  high
+  urgent
+}
+
+enum PmProjectStatus {
+  active
+  archived
+}
+
+/// Optional per-user override of project-management access. No row = default
+/// (super_admin => admin, everyone else => staff). `revoked` blocks access entirely.
+model PmMember {
+  userId    String       @id
+  role      PmMemberRole @default(staff)
+  revoked   Boolean      @default(false)
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @default(now()) @updatedAt
+
+  @@map("pm_members")
+}
+
+model PmProject {
+  id             String          @id @default(uuid())
+  key            String          @unique @db.VarChar(10)
+  name           String          @db.VarChar(100)
+  color          String          @default("#146356") @db.VarChar(9)
+  description    String?         @db.Text
+  status         PmProjectStatus @default(active)
+  nextTaskNumber Int             @default(1)
+  createdBy      String
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @default(now()) @updatedAt
+
+  @@index([status])
+  @@index([createdBy])
+  @@map("pm_projects")
+}
+
+model PmColumn {
+  id        String       @id @default(uuid())
+  projectId String
+  name      String       @db.VarChar(60)
+  position  Float
+  type      PmColumnType
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @default(now()) @updatedAt
+
+  @@index([projectId, position])
+  @@map("pm_columns")
+}
+
+model PmTask {
+  id          String     @id @default(uuid())
+  projectId   String
+  columnId    String
+  number      Int
+  title       String     @db.VarChar(300)
+  description String?    @db.Text
+  priority    PmPriority @default(medium)
+  assigneeId  String?
+  dueDate     String?    @db.VarChar(10)
+  position    Float
+  createdBy   String
+  startedAt   DateTime?
+  completedAt DateTime?
+  archivedAt  DateTime?
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @default(now()) @updatedAt
+
+  @@unique([projectId, number])
+  @@index([projectId, columnId, position])
+  @@index([assigneeId])
+  @@index([createdBy])
+  @@index([completedAt])
+  @@index([dueDate])
+  @@index([archivedAt])
+  @@map("pm_tasks")
+}
+
+model PmLabel {
+  id        String   @id @default(uuid())
+  projectId String
+  name      String   @db.VarChar(40)
+  color     String   @default("#787671") @db.VarChar(9)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
+
+  @@unique([projectId, name])
+  @@map("pm_labels")
+}
+
+model PmTaskLabel {
+  taskId  String
+  labelId String
+
+  @@id([taskId, labelId])
+  @@index([labelId])
+  @@map("pm_task_labels")
+}
+
+model PmUpdate {
+  id        String   @id @default(uuid())
+  taskId    String
+  authorId  String
+  body      String   @db.Text
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
+
+  @@index([taskId, createdAt])
+  @@index([authorId])
+  @@map("pm_updates")
+}
+
+model PmActivity {
+  id        String   @id @default(uuid())
+  projectId String
+  taskId    String?
+  actorId   String
+  type      String   @db.VarChar(40)
+  meta      Json?
+  createdAt DateTime @default(now())
+
+  @@index([projectId, createdAt])
+  @@index([taskId, createdAt])
+  @@index([actorId])
+  @@index([createdAt])
+  @@map("pm_activity")
+}
+
+model PmNotification {
+  id        String    @id @default(uuid())
+  userId    String
+  type      String    @db.VarChar(40)
+  taskId    String?
+  actorId   String?
+  readAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId, readAt, createdAt])
+  @@map("pm_notifications")
+}
