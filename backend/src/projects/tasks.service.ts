@@ -436,21 +436,27 @@ export class TasksService {
 
   // --- Daily due-soon job ------------------------------------------------
 
-  /** Notifies assignees of open tasks due tomorrow. Idempotent per task per day. */
+  /**
+   * Tells assignees about open tasks due today ("task.due_today") and tomorrow ("task.due_soon"),
+   * in the Projects bell and as a push. Idempotent per task per type per day.
+   */
   async notifyDueSoon(): Promise<number> {
-    const tomorrow = addDays(todayUtc(), 1);
-    const dayStart = new Date(`${todayUtc()}T00:00:00Z`);
-    const due = await this.prisma.$queryRaw<Array<{ id: string; assigneeId: string }>>`
-      SELECT t.id, t.assigneeId FROM pm_tasks t JOIN pm_columns c ON c.id = t.columnId
-      WHERE t.dueDate = ${tomorrow} AND t.assigneeId IS NOT NULL AND t.archivedAt IS NULL AND c.type <> 'done'`;
+    const today = todayUtc();
+    const dayStart = new Date(`${today}T00:00:00Z`);
     let sent = 0;
-    for (const t of due) {
-      const already = await this.prisma.pmNotification.count({
-        where: { userId: t.assigneeId, taskId: t.id, type: 'task.due_soon', createdAt: { gte: dayStart } },
-      });
-      if (already) continue;
-      await this.prisma.pmNotification.create({ data: { userId: t.assigneeId, taskId: t.id, type: 'task.due_soon' } });
-      sent++;
+    for (const [type, date] of [['task.due_today', today], ['task.due_soon', addDays(today, 1)]] as const) {
+      const due = await this.prisma.$queryRaw<Array<{ id: string; assigneeId: string }>>`
+        SELECT t.id, t.assigneeId FROM pm_tasks t JOIN pm_columns c ON c.id = t.columnId
+        WHERE t.dueDate = ${date} AND t.assigneeId IS NOT NULL AND t.archivedAt IS NULL AND c.type <> 'done'`;
+      for (const t of due) {
+        const already = await this.prisma.pmNotification.count({
+          where: { userId: t.assigneeId, taskId: t.id, type, createdAt: { gte: dayStart } },
+        });
+        if (already) continue;
+        await this.prisma.pmNotification.create({ data: { userId: t.assigneeId, taskId: t.id, type } });
+        this.activity.push([t.assigneeId], type, t.id, null);
+        sent++;
+      }
     }
     return sent;
   }

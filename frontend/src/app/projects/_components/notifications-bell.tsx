@@ -7,12 +7,14 @@ import { Bell } from 'lucide-react';
 import { pm, pollEvery } from '@/lib/pm/client';
 import { relativeTime } from '@/lib/pm/format';
 import type { PmNotification } from '@/lib/pm/types';
+import { PushAlerts } from '@/components/push-alerts';
 
 const TEXT: Record<string, string> = {
   'task.assigned': 'assigned you',
   'update.posted': 'posted an update on',
   'task.completed': 'completed',
   'task.due_soon': 'Due tomorrow:',
+  'task.due_today': 'Due today:',
 };
 
 export function NotificationsBell() {
@@ -64,7 +66,7 @@ export function NotificationsBell() {
               >
                 <span className={`mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full ${n.readAt ? 'bg-transparent' : 'bg-primary'}`} aria-hidden />
                 <span className="min-w-0 text-sm text-text">
-                  {n.type === 'task.due_soon' ? (
+                  {n.type === 'task.due_soon' || n.type === 'task.due_today' ? (
                     <>
                       {TEXT[n.type]} <span className="font-medium">{n.taskRef}</span> {n.taskTitle}
                     </>
@@ -78,6 +80,7 @@ export function NotificationsBell() {
               </Link>
             ))}
           </div>
+          <PushAlerts />
         </Popover.Content>
       </Popover.Portal>
     </Popover.Root>

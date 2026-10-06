@@ -7,6 +7,7 @@ import { UpdateUserDto } from './dto/update-user.dto';
 import { AttendanceService } from '../attendance/attendance.service';
 import { LeavesService } from '../leaves/leaves.service';
 import { zonedDateString } from '../attendance/attendance-calculations';
+import { NotificationsService } from '../notifications/notifications.service';
 
 const SALT_ROUNDS = 10;
 
@@ -28,6 +29,7 @@ export class UsersService {
     private readonly prisma: PrismaService,
     private readonly attendanceService: AttendanceService,
     private readonly leavesService: LeavesService,
+    private readonly notifications: NotificationsService,
   ) {}
 
   findAll(): Promise<User[]> {
@@ -137,8 +139,10 @@ export class UsersService {
   }
 
   async updateStatus(userId: string, status: PresenceStatus): Promise<User> {
-    await this.findByIdOrFail(userId);
-    return this.prisma.user.update({ where: { id: userId }, data: { currentStatus: status } });
+    const before = await this.findByIdOrFail(userId);
+    const updated = await this.prisma.user.update({ where: { id: userId }, data: { currentStatus: status } });
+    this.notifications.presenceChanged(userId, before.currentStatus, status);
+    return updated;
   }
 
   /** Users eligible to be someone's manager (manager or super admin), for the "Reports to" picker. */
