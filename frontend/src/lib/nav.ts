@@ -14,9 +14,6 @@ import {
   Building2,
   Wallet,
   IndianRupee,
-  Target,
-  KanbanSquare,
-  AlertTriangle,
   FolderKanban,
   type LucideIcon,
 } from 'lucide-react';
@@ -59,19 +56,6 @@ export const NAV_SECTIONS: NavSection[] = [
     ],
   },
   {
-    label: 'CRM',
-    roles: ['manager', 'super_admin', 'employee'],
-    items: [
-      { href: '/crm/pipeline', label: 'Sales Pipeline', icon: KanbanSquare },
-      { href: '/crm/leads', label: 'Lead Log', icon: ClipboardList },
-      { href: '/crm/dashboard', label: 'CRM Dashboard', icon: BarChart3 },
-      { href: '/crm/projection', label: 'Projection', icon: Target },
-      { href: '/crm/leaks', label: 'Sales Leaks', icon: AlertTriangle },
-      { href: '/crm/my-sales', label: 'My Sales', icon: Wallet },
-      { href: '/crm/activities', label: 'Daily Activity', icon: NotebookPen },
-    ],
-  },
-  {
     label: 'Team',
     roles: ['manager', 'super_admin'],
     items: [
@@ -89,7 +73,6 @@ export const NAV_SECTIONS: NavSection[] = [
       { href: '/admin/reports', label: 'Reports', icon: BarChart3 },
       { href: '/admin/attendance/settings', label: 'Settings', icon: Settings },
       { href: '/admin/payroll', label: 'Payroll Management', icon: IndianRupee },
-      { href: '/crm/settings', label: 'CRM Settings', icon: Settings },
     ],
   },
 ];

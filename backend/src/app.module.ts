@@ -15,7 +15,6 @@ import { WorkLogsModule } from './worklogs/work-logs.module';
 import { KnowledgeBaseModule } from './knowledge-base/knowledge-base.module';
 import { ClientsModule } from './clients/clients.module';
 import { PayrollModule } from './payroll/payroll.module';
-import { CrmModule } from './crm/crm.module';
 import { ProjectsModule } from './projects/projects.module';
 
 @Module({
@@ -36,7 +35,6 @@ import { ProjectsModule } from './projects/projects.module';
     KnowledgeBaseModule,
     ClientsModule,
     PayrollModule,
-    CrmModule,
     ProjectsModule,
   ],
   controllers: [AppController],

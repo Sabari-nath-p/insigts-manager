@@ -26,7 +26,7 @@ export default async function HomePage() {
 
         <h1 className="text-2xl font-bold tracking-tight text-text">A complete company management tool</h1>
         <p className="mt-2 mb-6 text-sm text-muted">
-          HR, payroll, attendance and CRM — everything your team needs, in one place.
+          HR, payroll, attendance and projects — everything your team needs, in one place.
         </p>
 
         <div className="mb-6 flex justify-center">
