@@ -40,7 +40,7 @@ function Toasts({ children }: { children: React.ReactNode }) {
       {children}
       <div className="pointer-events-none fixed bottom-4 left-1/2 z-[60] flex w-[min(92vw,380px)] -translate-x-1/2 flex-col gap-2" role="status" aria-live="polite">
         {items.map((t) => (
-          <div key={t.id} className="pointer-events-auto flex items-center gap-3 rounded-md border border-border bg-surface px-3 py-2 text-sm text-text">
+          <div key={t.id} className="pointer-events-auto flex items-center gap-3 rounded-lg border border-border bg-surface px-3 py-2 text-sm text-text">
             <span className="flex-1">{t.message}</span>
             {t.undo && (
               <button

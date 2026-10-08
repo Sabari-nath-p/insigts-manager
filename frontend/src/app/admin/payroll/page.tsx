@@ -130,7 +130,7 @@ export default async function AdminPayrollPage({ searchParams }: { searchParams:
         </div>
         <button
           type="submit"
-          className="rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-white hover:bg-primary-dark"
+          className="rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-on-primary hover:bg-primary-dark"
         >
           Apply
         </button>

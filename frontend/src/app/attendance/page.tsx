@@ -95,7 +95,7 @@ export default async function AttendancePage({
               type="month"
               name="month"
               defaultValue={month}
-              className="rounded-md border border-border bg-surface px-2.5 py-1.5 text-sm text-text outline-none"
+              className="rounded-lg border border-border bg-surface px-2.5 py-1.5 text-sm text-text outline-none"
             />
             <Select name="status" defaultValue={status ?? ''} className="w-auto py-1.5">
               <option value="">All statuses</option>

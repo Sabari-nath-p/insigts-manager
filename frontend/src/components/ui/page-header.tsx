@@ -19,7 +19,7 @@ export function PageHeader({
       <div className="flex items-start gap-3">
         {icon && <IconTile icon={icon} tone={tone} size="lg" className="mt-0.5" />}
         <div>
-          <h1 className="text-[28px] font-bold leading-tight tracking-tight text-text">{title}</h1>
+          <h1 className="font-display text-[32px] tracking-tight text-text sm:text-[40px]">{title}</h1>
           {subtitle && <p className="mt-1.5 text-sm text-muted">{subtitle}</p>}
         </div>
       </div>

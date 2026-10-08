@@ -12,11 +12,11 @@ export default async function ProjectsIndex() {
   return (
     <div className="h-full overflow-y-auto px-5 py-6 sm:px-8">
       <div className="mx-auto max-w-3xl">
-        <h1 className="text-xl font-semibold text-text">Projects</h1>
+        <h1 className="font-display text-[32px] tracking-tight text-text">Projects</h1>
         {active.length === 0 ? (
           <p className="mt-4 text-sm text-muted">No projects yet. Use the + next to Projects in the sidebar to create one.</p>
         ) : (
-          <ul className="mt-4 divide-y divide-border rounded-md border border-border bg-surface">
+          <ul className="mt-4 divide-y divide-border rounded-lg border border-border bg-surface">
             {active.map((p) => (
               <li key={p.id}>
                 <Link href={`/projects/${p.key}`} className="flex items-center gap-3 px-4 py-3 hover:bg-black/[0.02]">
@@ -35,7 +35,7 @@ export default async function ProjectsIndex() {
         {archived.length > 0 && (
           <>
             <h2 className="mt-8 text-sm font-semibold text-muted">Archived</h2>
-            <ul className="mt-2 divide-y divide-border rounded-md border border-border bg-surface">
+            <ul className="mt-2 divide-y divide-border rounded-lg border border-border bg-surface">
               {archived.map((p) => (
                 <li key={p.id}>
                   <Link href={`/projects/${p.key}`} className="flex items-center gap-3 px-4 py-2.5 text-sm text-muted hover:bg-black/[0.02]">

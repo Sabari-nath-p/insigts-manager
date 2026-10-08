@@ -60,7 +60,7 @@ export function InsightsView({
     <div className="h-full overflow-y-auto px-4 py-6 sm:px-8">
       <div className="mx-auto max-w-6xl">
         <div className="flex flex-wrap items-center gap-2">
-          <h1 className="mr-2 text-xl font-semibold text-text">Insights</h1>
+          <h1 className="font-display mr-2 text-[28px] tracking-tight text-text">Insights</h1>
           <select
             aria-label="Date range"
             className={SELECT}
@@ -241,7 +241,7 @@ function Card({ label, value, sub, tone, href, hint }: { label: string; value: n
       {sub && <p className="mt-0.5 text-xs text-muted">{sub}</p>}
     </>
   );
-  const cls = 'rounded-md border border-border bg-surface px-3 py-3';
+  const cls = 'rounded-lg border border-border bg-surface px-3 py-3';
   return href ? (
     <Link href={href} title={hint} className={cn(cls, 'hover:border-muted/50')}>
       {body}
@@ -253,7 +253,7 @@ function Card({ label, value, sub, tone, href, hint }: { label: string; value: n
 
 function Panel({ title, takeaway, actions, className, children }: { title: string; takeaway?: string; actions?: React.ReactNode; className?: string; children: React.ReactNode }) {
   return (
-    <section className={cn('rounded-md border border-border bg-surface p-4', className)}>
+    <section className={cn('rounded-lg border border-border bg-surface p-4', className)}>
       <div className="mb-3 flex items-center justify-between gap-2">
         <h2 className="text-sm font-medium text-text">{title}</h2>
         <div className="flex items-center gap-2">{actions}</div>
@@ -324,7 +324,7 @@ function HowCalculated() {
         </button>
       </Popover.Trigger>
       <Popover.Portal>
-        <Popover.Content align="end" sideOffset={6} className="z-50 w-72 rounded-md border border-border bg-surface p-3 text-xs text-text outline-none">
+        <Popover.Content align="end" sideOffset={6} className="z-50 w-72 rounded-lg border border-border bg-surface p-3 text-xs text-text outline-none">
           <ul className="flex flex-col gap-1.5">
             <li><b>Behind:</b> more than 25% of open tasks are overdue.</li>
             <li><b>At risk:</b> more than 10% of open tasks are overdue, or more than 3 tasks are stuck.</li>

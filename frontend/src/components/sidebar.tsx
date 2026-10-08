@@ -37,10 +37,10 @@ export function SidebarNav({ user, onNavigate }: { user: SessionUser; onNavigate
                     href={item.href}
                     onClick={onNavigate}
                     className={cn(
-                      'flex items-center gap-2.5 rounded-md border-l-[3px] px-2.5 py-1.5 text-sm font-medium transition-colors',
+                      'flex items-center gap-2.5 rounded-full px-3 py-2 text-sm font-medium transition-colors',
                       active
-                        ? 'border-primary bg-primary-tint pl-2 text-primary-dark'
-                        : 'border-transparent text-text hover:bg-black/[0.04] dark:hover:bg-white/[0.06]',
+                        ? 'bg-primary-tint text-primary-dark'
+                        : 'text-text hover:bg-black/[0.04] dark:hover:bg-white/[0.06]',
                     )}
                   >
                     <Icon size={16} className="shrink-0" strokeWidth={2} />

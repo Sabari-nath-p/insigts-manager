@@ -9,20 +9,20 @@
  * Notion brand token spec in design.md (colors, radius scale, type family).
  */
 @theme {
-  --color-bg: #fafaf9;
-  --color-sidebar: #f6f5f4;
+  --color-bg: #fbfbf5;
+  --color-sidebar: #ffffff;
   --color-surface: #ffffff;
-  --color-border: #e5e3df;
-  --color-text: #1a1a1a;
-  --color-muted: #787671;
-  --color-primary: #146356;
-  --color-primary-dark: #0e4a40;
-  --color-primary-tint: #daf3ec;
+  --color-border: #e4e4e7;
+  --color-text: #000000;
+  --color-muted: #71717a;
+  --color-primary: #000000;
+  --color-on-primary: #ffffff;
+  --color-primary-dark: #3f3f46;
+  --color-primary-tint: #c1fbd4;
   --color-danger: #e03131;
   --color-danger-bg: #fbe4e4;
 
-  --font-sans: var(--font-inter), 'Notion Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI',
-    Helvetica, Arial, sans-serif;
+  --font-sans: var(--font-inter), 'Inter Variable', Helvetica, Arial, sans-serif;
 
   --radius-xs: 4px;
   --radius-sm: 6px;
@@ -35,16 +35,17 @@
 
 :root {
   color-scheme: light;
-  --color-bg: #fafaf9;
-  --color-sidebar: #f6f5f4;
+  --color-bg: #fbfbf5;
+  --color-sidebar: #ffffff;
   --color-surface: #ffffff;
-  --color-primary: #146356;
-  --color-primary-dark: #0e4a40;
-  --color-primary-tint: #daf3ec;
-  --color-text: #1a1a1a;
-  --color-text-muted: #787671;
-  --color-muted: #787671;
-  --color-border: #e5e3df;
+  --color-primary: #000000;
+  --color-on-primary: #ffffff;
+  --color-primary-dark: #3f3f46;
+  --color-primary-tint: #c1fbd4;
+  --color-text: #000000;
+  --color-text-muted: #71717a;
+  --color-muted: #71717a;
+  --color-border: #e4e4e7;
   --color-danger: #e03131;
   --color-danger-bg: #fbe4e4;
 
@@ -63,7 +64,7 @@
   --chart-absent: #e03131;
   --chart-late: #dd5b00;
   --chart-early: #0075de;
-  --chart-primary: #146356;
+  --chart-primary: #000000;
 
   --tile-purple-bg: #e6e0f5;
   --tile-purple-text: #391c57;
@@ -84,16 +85,17 @@
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme='light']) {
     color-scheme: dark;
-    --color-bg: #191919;
-    --color-sidebar: #202020;
-    --color-surface: #202020;
-    --color-primary: #2dd4a8;
-    --color-primary-dark: #5eead4;
-    --color-primary-tint: rgba(45, 212, 168, 0.18);
-    --color-text: #e9e9e7;
-    --color-text-muted: #9b9b9b;
-    --color-muted: #9b9b9b;
-    --color-border: #2f2f2f;
+    --color-bg: #000000;
+    --color-sidebar: #0a0a0a;
+    --color-surface: #0a0a0a;
+    --color-primary: #ffffff;
+    --color-on-primary: #000000;
+    --color-primary-dark: #d4d4d8;
+    --color-primary-tint: #1e2c31;
+    --color-text: #ffffff;
+    --color-text-muted: #a1a1aa;
+    --color-muted: #a1a1aa;
+    --color-border: #1e2c31;
     --color-danger: #f2777a;
     --color-danger-bg: rgba(242, 119, 122, 0.16);
 
@@ -112,7 +114,7 @@
     --chart-absent: #e66767;
     --chart-late: #c98500;
     --chart-early: #3987e5;
-    --chart-primary: #2dd4a8;
+    --chart-primary: #ffffff;
 
     --tile-purple-bg: rgba(124, 110, 240, 0.18);
     --tile-purple-text: #b9aef7;
@@ -133,16 +135,17 @@
 
 :root[data-theme='dark'] {
   color-scheme: dark;
-  --color-bg: #191919;
-  --color-sidebar: #202020;
-  --color-surface: #202020;
-  --color-primary: #2dd4a8;
-  --color-primary-dark: #5eead4;
-  --color-primary-tint: rgba(45, 212, 168, 0.18);
-  --color-text: #e9e9e7;
-  --color-text-muted: #9b9b9b;
-  --color-muted: #9b9b9b;
-  --color-border: #2f2f2f;
+  --color-bg: #000000;
+  --color-sidebar: #0a0a0a;
+  --color-surface: #0a0a0a;
+  --color-primary: #ffffff;
+  --color-on-primary: #000000;
+  --color-primary-dark: #d4d4d8;
+  --color-primary-tint: #1e2c31;
+  --color-text: #ffffff;
+  --color-text-muted: #a1a1aa;
+  --color-muted: #a1a1aa;
+  --color-border: #1e2c31;
   --color-danger: #f2777a;
   --color-danger-bg: rgba(242, 119, 122, 0.16);
 
@@ -161,7 +164,7 @@
   --chart-absent: #e66767;
   --chart-late: #c98500;
   --chart-early: #3987e5;
-  --chart-primary: #2dd4a8;
+  --chart-primary: #ffffff;
 
   --tile-purple-bg: rgba(124, 110, 240, 0.18);
   --tile-purple-text: #b9aef7;
@@ -190,15 +193,21 @@ body {
 }
 
 body {
+  font-weight: 420;
+  font-feature-settings: "ss03";
+  font-optical-sizing: auto;
   background: var(--color-bg);
   color: var(--color-text);
   font-family: var(--font-sans);
   transition: background-color 0.15s ease, color 0.15s ease;
 }
 
-a {
-  color: inherit;
-  text-decoration: none;
+/* In the base layer so utility classes (text-on-primary on a link-styled button, etc.) win over it. */
+@layer base {
+  a {
+    color: inherit;
+    text-decoration: none;
+  }
 }
 
 button {
@@ -217,4 +226,26 @@ button {
 .thin-scrollbar::-webkit-scrollbar-thumb {
   background: var(--color-border);
   border-radius: 999px;
+}
+
+/*
+ * design.md: display type is thin (weight 330) and sits in the same family as the body.
+ * Inter's optical-size axis gives the large sizes their lighter, tighter Display cut.
+ */
+.font-display {
+  font-weight: 330;
+  font-feature-settings: 'ss03';
+  line-height: 1.14;
+}
+
+/* design.md: form fields are 8px rounded rectangles; buttons and tags are pills (see ui/button). */
+input:not([type='checkbox']):not([type='radio']),
+select,
+textarea {
+  border-radius: 8px;
+}
+
+/* Modal and floating panels sit one step above the page (design.md elevation level 4). */
+[role='dialog'] {
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
 }

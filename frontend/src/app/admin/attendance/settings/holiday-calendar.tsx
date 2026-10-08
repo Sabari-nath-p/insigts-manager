@@ -153,7 +153,7 @@ export function HolidayCalendar({
             onClick={() => setView(v)}
             className={cn(
               'rounded-md border px-3 py-1.5 text-sm font-medium transition-colors',
-              view === v ? 'border-primary bg-primary text-white' : 'border-border text-text hover:bg-black/[0.03] dark:hover:bg-white/[0.06]',
+              view === v ? 'border-primary bg-primary text-on-primary' : 'border-border text-text hover:bg-black/[0.03] dark:hover:bg-white/[0.06]',
             )}
           >
             {v.charAt(0).toUpperCase() + v.slice(1)} view

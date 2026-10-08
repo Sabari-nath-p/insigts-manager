@@ -129,7 +129,7 @@ export function PmShell({ me, initialProjects, children }: { me: PmMe; initialPr
                 href={`/projects/${p.key}`}
                 onClick={onNavigate}
                 className={cn(
-                  'flex items-center gap-2.5 rounded-md px-2.5 py-1.5 text-sm',
+                  'flex items-center gap-2.5 rounded-full px-3 py-1.5 text-sm',
                   isActive ? 'bg-primary-tint font-medium text-primary-dark' : 'text-text hover:bg-black/[0.04] dark:hover:bg-white/[0.06]',
                 )}
               >
@@ -232,7 +232,7 @@ function NavLink({
       href={href}
       onClick={onNavigate}
       className={cn(
-        'flex items-center gap-2.5 rounded-md px-2.5 py-1.5 text-sm',
+        'flex items-center gap-2.5 rounded-full px-3 py-1.5 text-sm',
         active ? 'bg-primary-tint font-medium text-primary-dark' : 'text-text hover:bg-black/[0.04] dark:hover:bg-white/[0.06]',
       )}
     >

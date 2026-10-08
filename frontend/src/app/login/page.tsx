@@ -23,9 +23,9 @@ export default function LoginPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password }),
       });
-      const data = await res.json();
+      const data = await res.json().catch(() => null);
       if (!res.ok) {
-        throw new Error(data?.message || 'Login failed');
+        throw new Error(data?.message || (res.ok ? 'The server sent an empty reply. Try again in a moment.' : 'Login failed'));
       }
       router.push('/dashboard');
       router.refresh();
@@ -43,7 +43,7 @@ export default function LoginPage() {
           <BrandMark size={24} />
           <span className="text-sm font-semibold text-text">Insights HRMS</span>
         </div>
-        <h1 className="text-2xl font-bold tracking-tight text-text">Welcome back</h1>
+        <h1 className="font-display text-[32px] tracking-tight text-text">Welcome back</h1>
         <p className="mt-1 mb-6 text-sm text-muted">Sign in to your Insights account</p>
 
         {error && (

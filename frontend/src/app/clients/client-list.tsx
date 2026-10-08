@@ -82,7 +82,7 @@ export function ClientList({
   return (
     <div>
       <div className="mb-5 flex flex-wrap items-center gap-2">
-        <div className="flex min-w-[220px] flex-1 items-center gap-2 rounded-md border border-border bg-surface px-3 py-2">
+        <div className="flex min-w-[220px] flex-1 items-center gap-2 rounded-lg border border-border bg-surface px-3 py-2">
           <Search size={16} className="text-muted" />
           <input
             value={query}
