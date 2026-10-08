@@ -55,7 +55,7 @@ export function StatusSelector({ current }: { current: string }) {
             className={cn(
               'rounded-md border px-3 py-1.5 text-sm font-medium transition-colors disabled:opacity-60',
               s.value === status
-                ? 'border-primary bg-primary text-white'
+                ? 'border-primary bg-primary text-on-primary'
                 : 'border-border text-text hover:bg-black/[0.03] dark:hover:bg-white/[0.06]',
             )}
           >

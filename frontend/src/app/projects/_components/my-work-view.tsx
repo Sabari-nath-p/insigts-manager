@@ -73,7 +73,7 @@ export function MyWorkView({ initial }: { initial: MyWorkData }) {
   return (
     <div className="h-full overflow-y-auto px-4 py-6 sm:px-8">
       <div className="mx-auto max-w-3xl">
-        <h1 className="text-xl font-semibold text-text">My Work</h1>
+        <h1 className="font-display text-[32px] tracking-tight text-text">My Work</h1>
         {total === 0 ? (
           <p className="mt-4 text-sm text-muted">Nothing assigned to you. Tasks assigned to you will show up here.</p>
         ) : (
@@ -85,7 +85,7 @@ export function MyWorkView({ initial }: { initial: MyWorkData }) {
                 <h2 className={cn('mb-1.5 text-sm font-medium', key === 'overdue' ? 'text-danger' : 'text-text')}>
                   {label} <span className="font-normal tabular-nums text-muted">{tasks.length}</span>
                 </h2>
-                <ul className="divide-y divide-border rounded-md border border-border bg-surface">
+                <ul className="divide-y divide-border rounded-lg border border-border bg-surface">
                   {tasks.map((t) => (
                     <li key={t.id} className="px-3 py-2">
                       <div className="flex flex-wrap items-center gap-x-3 gap-y-1">

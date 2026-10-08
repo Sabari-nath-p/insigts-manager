@@ -145,7 +145,7 @@ function DrawerBody({
               </button>
             </Menu.Trigger>
             <Menu.Portal>
-              <Menu.Content align="end" sideOffset={4} className="z-[60] min-w-40 rounded-md border border-border bg-surface p-1">
+              <Menu.Content align="end" sideOffset={4} className="z-[60] min-w-40 rounded-lg border border-border bg-surface p-1">
                 <Menu.Item
                   className={ITEM}
                   onSelect={() => {

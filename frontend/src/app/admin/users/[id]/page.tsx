@@ -60,7 +60,7 @@ export default async function UserDetailPage({ params }: { params: Promise<{ id:
       <div className="mb-8 flex items-start gap-4">
         <Avatar name={detail.fullName} size="lg" />
         <div className="min-w-0">
-          <h1 className="text-2xl font-bold tracking-tight text-text">{detail.fullName}</h1>
+          <h1 className="font-display text-[32px] tracking-tight text-text">{detail.fullName}</h1>
           <p className="mt-1 text-sm text-muted">
             <span className="capitalize">{detail.role.replace('_', ' ')}</span>
             {detail.workingType && <> · <span className="capitalize">{detail.workingType}</span></>}

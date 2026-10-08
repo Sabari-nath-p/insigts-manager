@@ -213,7 +213,7 @@ export function KnowledgeBaseClient({
         </div>
       )}
 
-      <div className="mb-5 flex items-center gap-2 rounded-md border border-border bg-surface px-3 py-2.5">
+      <div className="mb-5 flex items-center gap-2 rounded-lg border border-border bg-surface px-3 py-2.5">
         <Search size={16} className="text-muted" />
         <input
           value={query}
@@ -228,7 +228,7 @@ export function KnowledgeBaseClient({
           type="button"
           onClick={() => setGroup(null)}
           className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
-            group === null ? 'bg-primary text-white' : 'bg-black/[0.04] text-muted hover:text-text dark:bg-white/[0.06]'
+            group === null ? 'bg-primary text-on-primary' : 'bg-black/[0.04] text-muted hover:text-text dark:bg-white/[0.06]'
           }`}
         >
           All
@@ -239,7 +239,7 @@ export function KnowledgeBaseClient({
             type="button"
             onClick={() => setGroup(g)}
             className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
-              group === g ? 'bg-primary text-white' : 'bg-black/[0.04] text-muted hover:text-text dark:bg-white/[0.06]'
+              group === g ? 'bg-primary text-on-primary' : 'bg-black/[0.04] text-muted hover:text-text dark:bg-white/[0.06]'
             }`}
           >
             {g}

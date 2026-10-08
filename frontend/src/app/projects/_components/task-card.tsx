@@ -27,7 +27,7 @@ export function CardBody({ task, labels, done }: { task: PmTask; labels: Map<str
       {taskLabels.length > 0 && (
         <div className="mt-1.5 flex flex-wrap gap-1">
           {taskLabels.map((l) => (
-            <span key={l.id} className="rounded-sm border border-border px-1.5 text-[11px] text-muted">
+            <span key={l.id} className="rounded-full border border-border px-2 text-[11px] text-muted">
               <span className="mr-1 inline-block h-1.5 w-1.5 rounded-full align-middle" style={{ background: l.color }} aria-hidden />
               {l.name}
             </span>
@@ -78,7 +78,7 @@ export function SortableTaskCard({
         else listeners?.onKeyDown?.(e);
       }}
       className={cn(
-        'cursor-pointer rounded-md border border-border bg-surface px-2.5 py-2 outline-none hover:border-muted/50 focus-visible:ring-2 focus-visible:ring-primary',
+        'cursor-pointer rounded-lg border border-border bg-surface px-2.5 py-2 outline-none hover:border-muted/50 focus-visible:ring-2 focus-visible:ring-primary',
         isDragging && 'opacity-40',
       )}
     >

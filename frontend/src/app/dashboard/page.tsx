@@ -124,7 +124,7 @@ export default async function DashboardPage() {
               <Link
                 key={c.id}
                 href={`/clients/${c.id}`}
-                className="flex items-center justify-between gap-2 rounded-md border border-border bg-surface px-3 py-2.5 transition-colors hover:border-primary/40"
+                className="flex items-center justify-between gap-2 rounded-lg border border-border bg-surface px-3 py-2.5 transition-colors hover:border-primary/40"
               >
                 <div className="flex items-center gap-2">
                   <Building2 size={14} className="text-muted" />

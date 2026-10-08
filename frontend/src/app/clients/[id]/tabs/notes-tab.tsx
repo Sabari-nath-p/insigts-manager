@@ -66,7 +66,7 @@ export function NotesTab({ notes, clientId, currentUserId, canManage }: { notes:
           {notes.map((n) => {
             const canEdit = canManage || n.createdBy === currentUserId;
             return (
-              <div key={n.id} className="rounded-md border border-border bg-surface p-3">
+              <div key={n.id} className="rounded-lg border border-border bg-surface p-3">
                 <div className="mb-1.5 flex items-center justify-between">
                   <Pill tone={CATEGORY_TONE[n.category] ?? 'badgeGray'}>{n.category}</Pill>
                   <div className="flex items-center gap-2 text-xs text-muted">

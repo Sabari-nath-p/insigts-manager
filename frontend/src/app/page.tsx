@@ -24,7 +24,7 @@ export default async function HomePage() {
           <span className="text-base font-semibold text-text">Insights HRMS</span>
         </div>
 
-        <h1 className="text-2xl font-bold tracking-tight text-text">A complete company management tool</h1>
+        <h1 className="font-display text-[32px] tracking-tight text-text">A complete company management tool</h1>
         <p className="mt-2 mb-6 text-sm text-muted">
           HR, payroll, attendance and projects — everything your team needs, in one place.
         </p>

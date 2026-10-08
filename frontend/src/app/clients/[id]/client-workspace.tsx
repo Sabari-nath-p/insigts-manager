@@ -90,7 +90,7 @@ export function ClientWorkspace({
           {client.status ? <Building2 size={24} /> : null}
         </div>
         <div className="min-w-0 flex-1">
-          <h1 className="text-2xl font-bold tracking-tight text-text">{client.clientName}</h1>
+          <h1 className="font-display text-[32px] tracking-tight text-text">{client.clientName}</h1>
           <div className="mt-1.5 flex flex-wrap items-center gap-2 text-sm text-muted">
             <Pill tone={STATUS_TONE[client.status] ?? 'badgeGray'}>{client.status}</Pill>
             {client.industry && <span>Industry: {client.industry}</span>}

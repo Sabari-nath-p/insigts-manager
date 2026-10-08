@@ -19,7 +19,7 @@ export function ShortcutSheet({ open, onOpenChange }: { open: boolean; onOpenCha
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
       <Dialog.Portal>
         <Dialog.Overlay className="fixed inset-0 z-50 bg-black/30" />
-        <Dialog.Content className="fixed left-1/2 top-[18vh] z-50 w-[min(92vw,380px)] -translate-x-1/2 rounded-md border border-border bg-surface p-5 outline-none">
+        <Dialog.Content className="fixed left-1/2 top-[18vh] z-50 w-[min(92vw,380px)] -translate-x-1/2 rounded-lg border border-border bg-surface p-5 outline-none">
           <div className="mb-3 flex items-center justify-between">
             <Dialog.Title className="text-base font-semibold text-text">Keyboard shortcuts</Dialog.Title>
             <Dialog.Close aria-label="Close" className="text-muted hover:text-text">
@@ -32,7 +32,7 @@ export function ShortcutSheet({ open, onOpenChange }: { open: boolean; onOpenCha
               <div key={k} className="flex items-center justify-between text-sm">
                 <dt className="text-text">{d}</dt>
                 <dd>
-                  <kbd className="rounded-sm border border-border px-1.5 py-0.5 text-xs text-muted">{k}</kbd>
+                  <kbd className="rounded-full border border-border px-2 py-0.5 text-xs text-muted">{k}</kbd>
                 </dd>
               </div>
             ))}

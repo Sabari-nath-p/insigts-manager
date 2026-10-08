@@ -186,7 +186,7 @@ export function ResourceForm({
             name="file"
             type="file"
             required
-            className="w-full rounded-md border border-border bg-surface px-3 py-2 text-sm text-text outline-none file:mr-3 file:rounded file:border-0 file:bg-primary-tint file:px-2.5 file:py-1 file:text-xs file:font-medium file:text-primary-dark"
+            className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-text outline-none file:mr-3 file:rounded file:border-0 file:bg-primary-tint file:px-2.5 file:py-1 file:text-xs file:font-medium file:text-primary-dark"
           />
         </Field>
       )}

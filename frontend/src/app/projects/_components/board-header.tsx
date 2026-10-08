@@ -57,8 +57,8 @@ export function BoardHeader({
     <div className="shrink-0 px-4 pb-3 pt-4">
       <div className="mb-3 flex flex-wrap items-center gap-2">
         <span className="h-3 w-3 rounded-full" style={{ background: project.color }} aria-hidden />
-        <h1 className="text-lg font-semibold text-text">{project.name}</h1>
-        <span className="rounded-sm border border-border px-1.5 text-xs tabular-nums text-muted">{project.key}</span>
+        <h1 className="font-display text-[28px] tracking-tight text-text">{project.name}</h1>
+        <span className="rounded-full border border-border px-2 text-xs tabular-nums text-muted">{project.key}</span>
         {project.status === 'archived' && <span className="rounded-sm bg-[var(--badge-gray-bg)] px-1.5 text-xs text-muted">Archived</span>}
 
         <Menu.Root>
@@ -68,7 +68,7 @@ export function BoardHeader({
             </button>
           </Menu.Trigger>
           <Menu.Portal>
-            <Menu.Content align="start" sideOffset={4} className="z-50 min-w-44 rounded-md border border-border bg-surface p-1">
+            <Menu.Content align="start" sideOffset={4} className="z-50 min-w-44 rounded-lg border border-border bg-surface p-1">
               {isAdmin && (
                 <Menu.Item className={ITEM} onSelect={() => setRenaming(true)}>
                   Rename project

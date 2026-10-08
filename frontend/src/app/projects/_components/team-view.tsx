@@ -32,9 +32,9 @@ export function TeamView({ initial, meId }: { initial: TeamData; meId: string })
   return (
     <div className="h-full overflow-y-auto px-4 py-6 sm:px-8">
       <div className="mx-auto max-w-4xl">
-        <h1 className="text-xl font-semibold text-text">Team</h1>
+        <h1 className="font-display text-[32px] tracking-tight text-text">Team</h1>
         <p className="mt-1 text-sm text-muted">People come from the main user list. Add or deactivate accounts under Employees.</p>
-        <div className="mt-4 overflow-x-auto rounded-md border border-border bg-surface">
+        <div className="mt-4 overflow-x-auto rounded-lg border border-border bg-surface">
           <table className="w-full min-w-[640px] border-collapse text-sm">
             <thead className="border-b border-border">
               <tr className="text-left text-xs font-medium text-muted">

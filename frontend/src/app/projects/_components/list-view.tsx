@@ -51,7 +51,7 @@ export function ListView({ tasks, data, onOpen }: { tasks: PmTask[]; data: Board
 
   return (
     <div className="min-h-0 flex-1 overflow-auto px-4 pb-4 thin-scrollbar">
-      <table className="w-full min-w-[640px] border-collapse rounded-md border border-border bg-surface text-sm">
+      <table className="w-full min-w-[640px] border-collapse rounded-lg border border-border bg-surface text-sm">
         <thead className="sticky top-0 border-b border-border bg-surface">
           <tr>
             {head('ref', 'Task', 'w-24')}

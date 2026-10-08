@@ -30,7 +30,7 @@ export function PromptDialog({
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
       <Dialog.Portal>
         <Dialog.Overlay className="fixed inset-0 z-50 bg-black/30" />
-        <Dialog.Content className="fixed left-1/2 top-[22vh] z-50 w-[min(92vw,380px)] -translate-x-1/2 rounded-md border border-border bg-surface p-5 outline-none">
+        <Dialog.Content className="fixed left-1/2 top-[22vh] z-50 w-[min(92vw,380px)] -translate-x-1/2 rounded-lg border border-border bg-surface p-5 outline-none">
           <Dialog.Title className="mb-3 text-base font-semibold text-text">{title}</Dialog.Title>
           <Dialog.Description className="sr-only">{label}</Dialog.Description>
           <form
@@ -79,7 +79,7 @@ export function ConfirmDialog({
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
       <Dialog.Portal>
         <Dialog.Overlay className="fixed inset-0 z-50 bg-black/30" />
-        <Dialog.Content className="fixed left-1/2 top-[22vh] z-50 w-[min(92vw,380px)] -translate-x-1/2 rounded-md border border-border bg-surface p-5 outline-none">
+        <Dialog.Content className="fixed left-1/2 top-[22vh] z-50 w-[min(92vw,380px)] -translate-x-1/2 rounded-lg border border-border bg-surface p-5 outline-none">
           <Dialog.Title className="text-base font-semibold text-text">{title}</Dialog.Title>
           <Dialog.Description className="mt-2 text-sm text-muted">{body}</Dialog.Description>
           <div className="mt-4 flex justify-end gap-2">

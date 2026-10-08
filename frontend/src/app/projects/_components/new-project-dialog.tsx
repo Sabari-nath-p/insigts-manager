@@ -50,7 +50,7 @@ export function NewProjectDialog({ open, onOpenChange }: { open: boolean; onOpen
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
       <Dialog.Portal>
         <Dialog.Overlay className="fixed inset-0 z-50 bg-black/30" />
-        <Dialog.Content className="fixed left-1/2 top-[18vh] z-50 w-[min(92vw,420px)] -translate-x-1/2 rounded-md border border-border bg-surface p-5 outline-none">
+        <Dialog.Content className="fixed left-1/2 top-[18vh] z-50 w-[min(92vw,420px)] -translate-x-1/2 rounded-lg border border-border bg-surface p-5 outline-none">
           <div className="mb-4 flex items-center justify-between">
             <Dialog.Title className="text-base font-semibold text-text">New project</Dialog.Title>
             <Dialog.Close aria-label="Close" className="text-muted hover:text-text">

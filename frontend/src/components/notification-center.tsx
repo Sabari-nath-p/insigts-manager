@@ -79,7 +79,7 @@ export function NotificationCenter() {
         </button>
       </Popover.Trigger>
       <Popover.Portal>
-        <Popover.Content align="end" sideOffset={6} className="z-50 w-80 rounded-md border border-border bg-surface outline-none">
+        <Popover.Content align="end" sideOffset={6} className="z-50 w-80 rounded-lg border border-border bg-surface outline-none">
           <div className="flex items-center justify-between border-b border-border px-3 py-2">
             <span className="text-sm font-medium text-text">Notifications</span>
             <button className="text-xs text-primary hover:underline disabled:opacity-40" disabled={data.unread === 0} onClick={markAll}>

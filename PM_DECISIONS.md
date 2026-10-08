@@ -48,3 +48,10 @@ One line each: decision, then reason. `PM_BUILD_PLAN.md` is the source brief; wh
 - Announced: started, paused, resumed. Silent: meeting, leave, check-out, work logs. Reason: what was asked; one function to widen.
 - Reminder and Projects due-date job both run at 10:00 company time (APP_TIMEZONE) and are registered at startup, not with decorators, so the timezone comes from the loaded environment.
 - Projects due-date job now also sends "due today" besides "due tomorrow".
+
+## Design (branch redesign)
+- The whole site follows design.md, using its transactional (light) track as the default and its night track as dark mode. Reason: asked for the whole design; an HR/work tool is transactional.
+- Done through the shared tokens (globals.css), the shared Button, the sidebar highlight and page titles, so every page follows without per-page rewrites. Cards 12px, inputs 8px, buttons and tags pills, ink-black primary, aloe mint for selected states.
+- Neue Haas Grotesk Display is a paid font, so titles use Inter at weight 330 (design.md names Inter Display at light weights as the open substitute). Page titles are 32-40px, not 48px+, because they sit in a working app and not a marketing hero.
+- Status and priority colours (red overdue, orange and blue priority dots, green and red badges) are kept: they carry meaning, not branding.
+- The global link colour reset moved into the base CSS layer so link-styled buttons keep their own text colour.

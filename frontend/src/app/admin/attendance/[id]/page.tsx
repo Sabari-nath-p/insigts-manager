@@ -97,7 +97,7 @@ export default async function EmployeeAttendanceDetailPage({
           name="month"
           type="month"
           defaultValue={detail.month}
-          className="rounded-md border border-border bg-surface px-2.5 py-1.5 text-sm text-text outline-none"
+          className="rounded-lg border border-border bg-surface px-2.5 py-1.5 text-sm text-text outline-none"
         />
         <Button type="submit" variant="secondary" size="sm">
           View
