@@ -5,7 +5,7 @@ import dynamic from 'next/dynamic';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import * as Dialog from '@radix-ui/react-dialog';
 import * as Menu from '@radix-ui/react-dropdown-menu';
-import { MoreHorizontal, X } from 'lucide-react';
+import { ChevronRight, MoreHorizontal, X } from 'lucide-react';
 import { cn } from '@/lib/cn';
 import { Avatar } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
@@ -85,6 +85,8 @@ function DrawerBody({
   const [desc, setDesc] = useState(task?.description ?? '');
   const [preview, setPreview] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  // Long histories stay folded until asked for; the drawer is re-created per task, so each task starts closed.
+  const [activityOpen, setActivityOpen] = useState(false);
   const [seeded, setSeeded] = useState(!!task);
 
   useEffect(() => {
@@ -288,14 +290,27 @@ function DrawerBody({
         </section>
 
         <section className="mt-6 pb-4">
-          <h3 className="mb-2 text-sm font-medium text-text">Activity</h3>
-          <ul className="flex flex-col gap-1.5">
-            {(detail?.activity ?? []).map((a) => (
-              <li key={a.id} className="text-xs text-muted">
-                <span className="font-medium text-text">{a.actorName}</span> {activityText(a.type, a.meta)} · {relativeTime(a.createdAt)}
-              </li>
-            ))}
-          </ul>
+          <button
+            type="button"
+            aria-expanded={activityOpen}
+            aria-controls="task-activity-log"
+            onClick={() => setActivityOpen((o) => !o)}
+            className="flex w-full items-center gap-1.5 rounded-md py-1 text-left text-sm font-medium text-text hover:text-muted"
+          >
+            <ChevronRight size={16} className={cn('shrink-0 transition-transform duration-150', activityOpen && 'rotate-90')} />
+            Activity
+            {detail && <span className="font-normal tabular-nums text-muted">{detail.activity.length}</span>}
+          </button>
+          {activityOpen && (
+            <ul id="task-activity-log" className="mt-2 flex flex-col gap-1.5 pl-[22px]">
+              {(detail?.activity ?? []).map((a) => (
+                <li key={a.id} className="text-xs text-muted">
+                  <span className="font-medium text-text">{a.actorName}</span> {activityText(a.type, a.meta)} · {relativeTime(a.createdAt)}
+                </li>
+              ))}
+              {detail && detail.activity.length === 0 && <li className="text-xs text-muted">No activity yet.</li>}
+            </ul>
+          )}
         </section>
       </div>
 

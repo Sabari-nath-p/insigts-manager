@@ -14,31 +14,74 @@ export interface CalendarDay {
 const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
 /**
- * Status -> visual treatment.
- * Greens (aloe / pistachio) are the brand's "success" family, so presence + holidays live there.
- * Warning/negative states get soft tints so a manager can scan a month in one glance.
+ * Status -> visual treatment, for both themes.
+ * Light: soft pastel tints (aloe / pistachio for presence and holidays) so a month scans at a glance.
+ * Dark: the same hues as translucent fills on the dark surface, with light text.
+ * The two "worked on a day off" statuses invert: dark cell in light mode, light cell in dark mode.
  */
 const STATUS_STYLE: Record<string, { cell: string; dot: string; chip: string }> = {
-  present:         { cell: 'bg-[#d4f9e0] border-[#bdeccb]', dot: 'bg-emerald-600', chip: 'bg-white/70 text-black' },
-  late:            { cell: 'bg-amber-50 border-amber-200',   dot: 'bg-amber-500',   chip: 'bg-white/70 text-black' },
-  early_checkout:  { cell: 'bg-orange-50 border-orange-200', dot: 'bg-orange-500',  chip: 'bg-white/70 text-black' },
-  half_day:        { cell: 'bg-sky-50 border-sky-200',       dot: 'bg-sky-500',     chip: 'bg-white/70 text-black' },
-  absent:          { cell: 'bg-rose-50 border-rose-200',     dot: 'bg-rose-500',    chip: 'bg-white/70 text-black' },
-  on_leave:        { cell: 'bg-violet-50 border-violet-200', dot: 'bg-violet-500',  chip: 'bg-white/70 text-black' },
-  weekend:         { cell: 'bg-[#fbfbf5] border-[#e4e4e7]',  dot: 'bg-zinc-400',    chip: 'bg-zinc-200/70 text-zinc-600' },
-  holiday:         { cell: 'bg-[#c1fbd4] border-[#a6efbf]',  dot: 'bg-emerald-700', chip: 'bg-white/70 text-black' },
-  holiday_worked:  { cell: 'bg-black border-black text-white', dot: 'bg-[#c1fbd4]', chip: 'bg-white/15 text-white' },
-  week_off_worked: { cell: 'bg-zinc-800 border-zinc-800 text-white', dot: 'bg-[#d4f9e0]', chip: 'bg-white/15 text-white' },
+  present: {
+    cell: 'bg-[#d4f9e0] border-[#bdeccb] dark:bg-emerald-400/15 dark:border-emerald-400/30',
+    dot: 'bg-emerald-600 dark:bg-emerald-400',
+    chip: 'bg-white/70 text-black dark:bg-white/10 dark:text-white',
+  },
+  late: {
+    cell: 'bg-amber-50 border-amber-200 dark:bg-amber-400/15 dark:border-amber-400/30',
+    dot: 'bg-amber-500',
+    chip: 'bg-white/70 text-black dark:bg-white/10 dark:text-white',
+  },
+  early_checkout: {
+    cell: 'bg-orange-50 border-orange-200 dark:bg-orange-400/15 dark:border-orange-400/30',
+    dot: 'bg-orange-500',
+    chip: 'bg-white/70 text-black dark:bg-white/10 dark:text-white',
+  },
+  half_day: {
+    cell: 'bg-sky-50 border-sky-200 dark:bg-sky-400/15 dark:border-sky-400/30',
+    dot: 'bg-sky-500',
+    chip: 'bg-white/70 text-black dark:bg-white/10 dark:text-white',
+  },
+  absent: {
+    cell: 'bg-rose-50 border-rose-200 dark:bg-rose-400/15 dark:border-rose-400/30',
+    dot: 'bg-rose-500',
+    chip: 'bg-white/70 text-black dark:bg-white/10 dark:text-white',
+  },
+  on_leave: {
+    cell: 'bg-violet-50 border-violet-200 dark:bg-violet-400/15 dark:border-violet-400/30',
+    dot: 'bg-violet-500',
+    chip: 'bg-white/70 text-black dark:bg-white/10 dark:text-white',
+  },
+  weekend: {
+    cell: 'bg-bg border-border',
+    dot: 'bg-zinc-400',
+    chip: 'bg-zinc-200/70 text-zinc-600 dark:bg-white/10 dark:text-zinc-300',
+  },
+  holiday: {
+    cell: 'bg-[#c1fbd4] border-[#a6efbf] dark:bg-[#c1fbd4]/20 dark:border-[#c1fbd4]/40',
+    dot: 'bg-emerald-700 dark:bg-[#c1fbd4]',
+    chip: 'bg-white/70 text-black dark:bg-white/10 dark:text-white',
+  },
+  holiday_worked: {
+    cell: 'bg-black border-black text-white dark:bg-white dark:border-white dark:text-black',
+    dot: 'bg-[#c1fbd4] dark:bg-emerald-600',
+    chip: 'bg-white/15 text-white dark:bg-black/10 dark:text-black',
+  },
+  week_off_worked: {
+    cell: 'bg-zinc-800 border-zinc-800 text-white dark:bg-zinc-200 dark:border-zinc-200 dark:text-black',
+    dot: 'bg-[#d4f9e0] dark:bg-emerald-600',
+    chip: 'bg-white/15 text-white dark:bg-black/10 dark:text-black',
+  },
 };
 
-const FALLBACK_STYLE = { cell: 'bg-white border-[#e4e4e7]', dot: 'bg-zinc-400', chip: 'bg-zinc-100 text-black' };
+const FALLBACK_STYLE = { cell: 'bg-surface border-border', dot: 'bg-zinc-400', chip: 'bg-zinc-100 text-black dark:bg-white/10 dark:text-white' };
 const styleFor = (s: string) => STATUS_STYLE[s] ?? FALLBACK_STYLE;
-const isDarkCell = (s: string) => s === 'holiday_worked' || s === 'week_off_worked';
+const isInvertedCell = (s: string) => s === 'holiday_worked' || s === 'week_off_worked';
 
 const LEGEND_ORDER = [
   'present', 'late', 'early_checkout', 'half_day', 'absent',
   'on_leave', 'weekend', 'holiday', 'holiday_worked', 'week_off_worked',
 ];
+
+const DISPLAY_FONT = '"NeueHaasGrotesk Display", "Inter Display", Helvetica, Arial, sans-serif';
 
 const pad = (n: number) => String(n).padStart(2, '0');
 
@@ -83,7 +126,7 @@ export function AttendanceMonthCalendar({ month, history }: { month: string; his
 
   return (
     <div
-      className="rounded-xl border border-[#e4e4e7] bg-white p-4 sm:p-8"
+      className="rounded-xl border border-border bg-surface p-4 sm:p-8"
       style={{
         fontFeatureSettings: '"ss03"',
         boxShadow:
@@ -93,25 +136,19 @@ export function AttendanceMonthCalendar({ month, history }: { month: string; his
       {/* Header: thin display month + summary tiles */}
       <div className="mb-6 flex flex-col gap-5 sm:mb-8 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <p className="text-[12px] uppercase tracking-[0.72px] text-zinc-500">Attendance</p>
-          <h2
-            className="mt-1 text-[44px] leading-none text-black sm:text-[56px]"
-            style={{ fontWeight: 330, fontFamily: '"NeueHaasGrotesk Display", "Inter Display", Helvetica, Arial, sans-serif' }}
-          >
-            {monthTitle} <span className="text-zinc-400">{year}</span>
+          <p className="text-[12px] uppercase tracking-[0.72px] text-muted">Attendance</p>
+          <h2 className="mt-1 text-[44px] leading-none text-text sm:text-[56px]" style={{ fontWeight: 330, fontFamily: DISPLAY_FONT }}>
+            {monthTitle} <span className="text-muted">{year}</span>
           </h2>
         </div>
 
         <div className="grid grid-cols-4 gap-2">
           {summary.map((s) => (
-            <div key={s.key} className="rounded-lg bg-[#fbfbf5] px-3 py-2 text-center sm:px-4">
-              <div
-                className="text-2xl leading-none text-black sm:text-3xl"
-                style={{ fontWeight: 330, fontFamily: '"NeueHaasGrotesk Display", "Inter Display", Helvetica, Arial, sans-serif' }}
-              >
+            <div key={s.key} className="rounded-lg bg-bg px-3 py-2 text-center sm:px-4">
+              <div className="text-2xl leading-none text-text sm:text-3xl" style={{ fontWeight: 330, fontFamily: DISPLAY_FONT }}>
                 {counts[s.key] ?? 0}
               </div>
-              <div className="mt-1 text-[11px] font-medium text-zinc-500">{s.label}</div>
+              <div className="mt-1 text-[11px] font-medium text-muted">{s.label}</div>
             </div>
           ))}
         </div>
@@ -130,13 +167,13 @@ export function AttendanceMonthCalendar({ month, history }: { month: string; his
               className={cn(
                 'inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-[12px] font-medium transition-colors',
                 active
-                  ? 'border-black bg-black text-white'
-                  : 'border-[#e4e4e7] bg-white text-black hover:border-black',
+                  ? 'border-primary bg-primary text-on-primary'
+                  : 'border-border bg-surface text-text hover:border-primary',
               )}
             >
               <span className={cn('h-2 w-2 rounded-full', styleFor(s).dot)} />
               {statusLabel(s)}
-              <span className={cn('tabular-nums', active ? 'text-white/60' : 'text-zinc-400')}>{counts[s]}</span>
+              <span className={cn('tabular-nums', active ? 'opacity-60' : 'text-muted')}>{counts[s]}</span>
             </button>
           );
         })}
@@ -144,7 +181,7 @@ export function AttendanceMonthCalendar({ month, history }: { month: string; his
           <button
             type="button"
             onClick={() => setFilter(null)}
-            className="rounded-full px-3 py-1.5 text-[12px] font-medium text-zinc-500 underline underline-offset-2 hover:text-black"
+            className="rounded-full px-3 py-1.5 text-[12px] font-medium text-muted underline underline-offset-2 hover:text-text"
           >
             Clear
           </button>
@@ -157,8 +194,8 @@ export function AttendanceMonthCalendar({ month, history }: { month: string; his
           <div
             key={d}
             className={cn(
-              'pb-1 text-center text-[11px] font-medium uppercase tracking-[0.72px]',
-              i === 0 || i === 6 ? 'text-zinc-400' : 'text-zinc-500',
+              'pb-1 text-center text-[11px] font-medium uppercase tracking-[0.72px] text-muted',
+              (i === 0 || i === 6) && 'opacity-70',
             )}
           >
             <span className="sm:hidden">{d[0]}</span>
@@ -172,7 +209,7 @@ export function AttendanceMonthCalendar({ month, history }: { month: string; his
           const isToday = cell.date === todayStr;
           const isSelected = selected?.date === cell.date;
           const st = day ? styleFor(day.status) : FALLBACK_STYLE;
-          const dark = day ? isDarkCell(day.status) : false;
+          const inverted = day ? isInvertedCell(day.status) : false;
           const dimmed = filter !== null && day?.status !== filter;
           const label = day ? day.holidayName ?? statusLabel(day.status) : '';
 
@@ -180,7 +217,7 @@ export function AttendanceMonthCalendar({ month, history }: { month: string; his
             'group relative flex aspect-square min-h-[52px] flex-col justify-between rounded-lg border p-1.5 text-left transition-all duration-200 sm:aspect-auto sm:min-h-[84px] sm:p-2.5',
             st.cell,
             dimmed && 'opacity-25',
-            isSelected && 'ring-2 ring-black ring-offset-2',
+            isSelected && 'ring-2 ring-primary ring-offset-2 ring-offset-surface',
           );
 
           const inner = (
@@ -188,8 +225,14 @@ export function AttendanceMonthCalendar({ month, history }: { month: string; his
               <span
                 className={cn(
                   'inline-flex h-6 min-w-6 items-center justify-center rounded-full px-1 text-[12px] font-semibold tabular-nums sm:h-7 sm:min-w-7 sm:text-[13px]',
-                  isToday ? 'bg-black text-white' : dark ? 'text-white' : 'text-black',
-                  isToday && dark && 'bg-white text-black',
+                  // One text colour per case, so two colour classes never compete for the same element.
+                  isToday
+                    ? inverted
+                      ? 'bg-white text-black dark:bg-black dark:text-white'
+                      : 'bg-primary text-on-primary'
+                    : inverted
+                      ? 'text-white dark:text-black'
+                      : 'text-text',
                 )}
               >
                 {cell.day}
@@ -237,11 +280,11 @@ export function AttendanceMonthCalendar({ month, history }: { month: string; his
       {/* Day detail */}
       <div aria-live="polite" className="mt-6">
         {selected ? (
-          <div className="flex items-center justify-between gap-4 rounded-xl bg-[#fbfbf5] px-5 py-4">
+          <div className="flex items-center justify-between gap-4 rounded-xl bg-bg px-5 py-4">
             <div className="flex items-center gap-4">
               <span className={cn('h-10 w-1.5 rounded-full', styleFor(selected.status).dot)} />
               <div>
-                <p className="text-[12px] uppercase tracking-[0.72px] text-zinc-500">
+                <p className="text-[12px] uppercase tracking-[0.72px] text-muted">
                   {new Date(`${selected.date}T00:00:00`).toLocaleDateString(undefined, {
                     weekday: 'long',
                     day: 'numeric',
@@ -249,13 +292,10 @@ export function AttendanceMonthCalendar({ month, history }: { month: string; his
                     year: 'numeric',
                   })}
                 </p>
-                <p
-                  className="mt-0.5 text-[22px] leading-tight text-black"
-                  style={{ fontWeight: 400, fontFamily: '"NeueHaasGrotesk Display", "Inter Display", Helvetica, Arial, sans-serif' }}
-                >
+                <p className="mt-0.5 text-[22px] leading-tight text-text" style={{ fontWeight: 400, fontFamily: DISPLAY_FONT }}>
                   {selected.holidayName ?? statusLabel(selected.status)}
                 </p>
-                <p className="mt-1 text-sm text-zinc-500">
+                <p className="mt-1 text-sm text-muted">
                   {statusLabel(selected.status)}
                   {selected.holidayType ? ` · ${statusLabel(selected.holidayType)}` : ''}
                 </p>
@@ -264,13 +304,13 @@ export function AttendanceMonthCalendar({ month, history }: { month: string; his
             <button
               type="button"
               onClick={() => setSelected(null)}
-              className="shrink-0 rounded-full border border-black bg-white px-5 py-2 text-sm font-medium text-black transition-colors hover:bg-black hover:text-white"
+              className="shrink-0 rounded-full border border-primary bg-surface px-5 py-2 text-sm font-medium text-text transition-colors hover:bg-primary hover:text-on-primary"
             >
               Close
             </button>
           </div>
         ) : (
-          <p className="text-center text-[13px] text-zinc-400">Tap any day for details</p>
+          <p className="text-center text-[13px] text-muted">Tap any day for details</p>
         )}
       </div>
     </div>
