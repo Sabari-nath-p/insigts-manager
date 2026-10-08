@@ -148,15 +148,10 @@ export function PmShell({ me, initialProjects, children }: { me: PmMe; initialPr
   return (
     <div className="flex h-screen overflow-hidden bg-bg">
       <aside className="hidden w-60 shrink-0 flex-col border-r border-border bg-sidebar md:flex">
-        <div className="flex h-14 items-center gap-2 border-b border-border px-4">
-          <span className="text-sm font-semibold text-text">Projects</span>
+        <div className="flex h-14 items-center border-b border-border px-2.5">
+          <BackToHrms />
         </div>
         {nav()}
-        <div className="border-t border-border px-2.5 py-2">
-          <Link href="/dashboard" className="flex items-center gap-2 rounded-md px-2.5 py-1.5 text-xs text-muted hover:bg-black/[0.04] hover:text-text dark:hover:bg-white/[0.06]">
-            <ArrowLeft size={14} /> Back to Insights
-          </Link>
-        </div>
       </aside>
 
       <Dialog.Root open={mobileOpen} onOpenChange={setMobileOpen}>
@@ -164,8 +159,8 @@ export function PmShell({ me, initialProjects, children }: { me: PmMe; initialPr
           <Dialog.Overlay className="fixed inset-0 z-40 bg-black/30 md:hidden" />
           <Dialog.Content className="fixed inset-y-0 left-0 z-50 flex w-72 flex-col bg-sidebar outline-none md:hidden">
             <Dialog.Title className="sr-only">Navigation</Dialog.Title>
-            <div className="flex h-14 items-center justify-between border-b border-border px-4">
-              <span className="text-sm font-semibold text-text">Projects</span>
+            <div className="flex h-14 items-center justify-between border-b border-border px-2.5">
+              <BackToHrms />
               <Dialog.Close className="flex h-8 w-8 items-center justify-center rounded-md text-muted hover:bg-black/[0.04]" aria-label="Close menu">
                 <X size={18} />
               </Dialog.Close>
@@ -203,6 +198,18 @@ export function PmShell({ me, initialProjects, children }: { me: PmMe; initialPr
       <NewProjectDialog open={newProjectOpen} onOpenChange={setNewProjectOpen} />
       <ShortcutSheet open={sheetOpen} onOpenChange={setSheetOpen} />
     </div>
+  );
+}
+
+/** Top-of-sidebar way back to the main HRMS app. */
+function BackToHrms() {
+  return (
+    <Link
+      href="/dashboard"
+      className="flex items-center gap-2 rounded-md px-2.5 py-1.5 text-sm font-medium text-text hover:bg-black/[0.04] dark:hover:bg-white/[0.06]"
+    >
+      <ArrowLeft size={16} className="shrink-0" /> Back to HRMS
+    </Link>
   );
 }
 

@@ -20,7 +20,7 @@ export default async function ProjectsLayout({ children }: { children: React.Rea
         <h1 className="text-lg font-semibold text-text">Projects is not available to you</h1>
         <p className="max-w-sm text-sm text-muted">{(err as Error).message}. Ask an admin to restore your access.</p>
         <Link href="/dashboard" className="mt-2 text-sm text-primary hover:underline">
-          Back to Insights
+          Back to HRMS
         </Link>
       </div>
     );
