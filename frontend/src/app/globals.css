@@ -1,6 +1,21 @@
 @import 'tailwindcss';
 
 /*
+ * `dark:` utilities follow the same rule as the colour tokens below: dark when the user chose dark
+ * with the theme toggle (data-theme="dark"), or when nothing was chosen and the OS prefers dark.
+ */
+@custom-variant dark {
+  @media (prefers-color-scheme: dark) {
+    &:where(:root:not([data-theme='light']) *) {
+      @slot;
+    }
+  }
+  &:where([data-theme='dark'], [data-theme='dark'] *) {
+    @slot;
+  }
+}
+
+/*
  * Tailwind v4 needs a value present in @theme to generate each utility class
  * (bg-bg, text-muted, border-border, rounded-lg, …). The actual light/dark
  * color values are set at runtime below via plain CSS custom properties on
