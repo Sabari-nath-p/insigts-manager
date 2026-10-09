@@ -1069,6 +1069,7 @@ model PmTask {
   title       String     @db.VarChar(300)
   description String?    @db.Text
   priority    PmPriority @default(medium)
+  /// LEGACY: the single assignee from before multiple assignees. Unused now; see pm_task_assignees.
   assigneeId  String?
   dueDate     String?    @db.VarChar(10)
   position    Float
@@ -1201,4 +1202,15 @@ model FcmToken {
 
   @@index([userId])
   @@map("fcm_tokens")
+}
+
+/// People working on a task. A task can have several; the first assignee is the one with the earliest createdAt.
+model PmTaskAssignee {
+  taskId    String
+  userId    String
+  createdAt DateTime @default(now())
+
+  @@id([taskId, userId])
+  @@index([userId])
+  @@map("pm_task_assignees")
 }

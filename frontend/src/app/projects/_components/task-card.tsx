@@ -4,7 +4,7 @@ import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { MessageSquare } from 'lucide-react';
 import { cn } from '@/lib/cn';
-import { Avatar } from '@/components/ui/avatar';
+import { AvatarStack } from './avatar-stack';
 import { PRIORITY_COLOR, PRIORITY_LABEL, formatDue, isOverdue } from '@/lib/pm/format';
 import type { PmLabel, PmTask } from '@/lib/pm/types';
 
@@ -41,7 +41,7 @@ export function CardBody({ task, labels, done }: { task: PmTask; labels: Map<str
             <MessageSquare size={11} /> {task.updateCount}
           </span>
         )}
-        <span className="ml-auto">{task.assigneeName ? <Avatar name={task.assigneeName} size="sm" /> : null}</span>
+        <AvatarStack people={task.assignees} className="ml-auto" />
       </div>
     </>
   );

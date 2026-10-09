@@ -53,7 +53,7 @@ async function main() {
   const ids = users.map((u) => u.id);
 
   if (reset) {
-    for (const table of ['pmNotification', 'pmActivity', 'pmUpdate', 'pmTaskLabel', 'pmTask', 'pmLabel', 'pmColumn', 'pmProject'] as const) {
+    for (const table of ['pmTaskAssignee', 'pmNotification', 'pmActivity', 'pmUpdate', 'pmTaskLabel', 'pmTask', 'pmLabel', 'pmColumn', 'pmProject'] as const) {
       await (prisma[table] as unknown as { deleteMany: () => Promise<unknown> }).deleteMany();
     }
   }
@@ -95,7 +95,6 @@ async function main() {
           title: pick(TITLES),
           description: rand() < 0.4 ? 'Context and acceptance notes go here.\n\n- Check with the owner\n- Link the final result' : null,
           priority: pick<PmPriority>(['low', 'medium', 'medium', 'high', 'urgent']),
-          assigneeId: rand() < 0.85 ? pick(ids) : null,
           dueDate: due,
           position: positions[col.id],
           createdBy: pick(ids),
@@ -106,6 +105,14 @@ async function main() {
         },
       });
       totalTasks++;
+
+      // About 85% of tasks have someone on them, and roughly one in five of those has a second person.
+      if (rand() < 0.85) {
+        const first = pick(ids);
+        const others = ids.filter((id) => id !== first);
+        const people = others.length > 0 && rand() < 0.2 ? [first, pick(others)] : [first];
+        await prisma.pmTaskAssignee.createMany({ data: people.map((userId) => ({ taskId: task.id, userId })) });
+      }
 
       const taskLabels = labels.filter(() => rand() < 0.25);
       if (taskLabels.length) await prisma.pmTaskLabel.createMany({ data: taskLabels.map((l) => ({ taskId: task.id, labelId: l.id })) });

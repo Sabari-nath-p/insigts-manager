@@ -65,7 +65,9 @@ test('staff assigns a task and posts an update; the assignee is notified', async
   const a = await ctxA.newPage();
   await login(a, staffA);
   await a.goto(`/projects/${key}?task=${key}-1`);
-  await a.getByRole('dialog').getByLabel('Assignee').selectOption({ label: 'E2E Bob' });
+  await a.getByRole('button', { name: 'Assign someone' }).click();
+  await a.getByRole('button', { name: /E2E Bob/ }).click();
+  await expect(a.getByRole('group', { name: 'Assignees' }).getByText('E2E Bob')).toBeVisible();
   await a.getByLabel('Post a work update').fill('Contract reviewed, two clauses flagged.');
   await a.getByRole('button', { name: 'Post update' }).click();
   await expect(a.getByText('Contract reviewed, two clauses flagged.')).toBeVisible();
@@ -142,4 +144,43 @@ test('insights date range is stored in the URL and survives a reload', async ({ 
   await page.getByLabel('Date range').selectOption('last-month');
   await expect(page).toHaveURL(/range=last-month/);
   await expect(page.getByLabel('Date range')).toHaveValue('last-month');
+});
+
+test('a task can have two assignees, people can be removed, and one always remains', async ({ page }) => {
+  const key = uniqueKey();
+  const tokenA = await apiLogin(staffA, PASSWORD);
+  await api(tokenA, 'POST', '/pm/projects', { name: `Pair ${key}`, key });
+  await api(tokenA, 'POST', `/pm/projects/${key}/tasks`, { title: 'Pair work' });
+
+  await login(page, staffA);
+  await page.goto(`/projects/${key}?task=${key}-1`);
+  const people = page.getByRole('group', { name: 'Assignees' });
+
+  await page.getByRole('button', { name: 'Assign someone' }).click();
+  await page.getByRole('button', { name: /E2E Bob/ }).click();
+  await expect(people.getByText('E2E Bob')).toBeVisible();
+  // With a single person there is no way to remove them.
+  await expect(people.getByRole('button', { name: /^Remove/ })).toHaveCount(0);
+
+  await page.getByRole('button', { name: 'Add another assignee' }).click();
+  await page.getByRole('button', { name: /E2E Alice/ }).click();
+  await expect(people.getByText('E2E Alice')).toBeVisible();
+  await expect(people.getByRole('button', { name: /^Remove/ })).toHaveCount(2);
+
+  await people.getByRole('button', { name: 'Remove E2E Bob' }).click();
+  await expect(people.getByText('E2E Bob')).toHaveCount(0);
+  await expect(people.getByText('E2E Alice')).toBeVisible();
+  await expect(people.getByRole('button', { name: /^Remove/ })).toHaveCount(0);
+
+  // The server enforces the same rule.
+  await expect
+    .poll(async () => (await api(tokenA, 'GET', `/pm/projects/${key}/board`)).json.tasks[0].assignees.map((x: { name: string }) => x.name))
+    .toEqual(['E2E Alice']);
+  const empty = await api(tokenA, 'PATCH', `/pm/tasks/${key}-1`, { assigneeIds: [] });
+  expect(empty.status).toBe(400);
+
+  // The second assignee was told when added.
+  const tokenB = await apiLogin(staffB, PASSWORD);
+  const notes = (await api(tokenB, 'GET', '/pm/notifications')).json;
+  expect(notes.items.some((n: { type: string; taskRef: string }) => n.type === 'task.assigned' && n.taskRef === `${key}-1`)).toBe(true);
 });

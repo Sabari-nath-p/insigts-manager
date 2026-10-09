@@ -1,6 +1,7 @@
 import { PmColumnType, PmMemberRole, PmPriority } from '@prisma/client';
 import { Type } from 'class-transformer';
 import {
+  ArrayMaxSize,
   IsArray,
   IsBoolean,
   IsEnum,
@@ -51,7 +52,8 @@ export class CreateTaskDto {
   @IsOptional() @IsUUID() columnId?: string;
   @IsOptional() @IsString() @MaxLength(20000) description?: string;
   @IsOptional() @IsEnum(PmPriority) priority?: PmPriority;
-  @IsOptional() @IsUUID() assigneeId?: string;
+  /** Everyone starting on the task. Leave out for an unassigned task. */
+  @IsOptional() @IsArray() @ArrayMaxSize(20) @IsUUID('all', { each: true }) assigneeIds?: string[];
   @IsOptional() @Matches(DATE_RE) dueDate?: string;
   @IsOptional() @IsArray() @IsUUID('all', { each: true }) labelIds?: string[];
 }
@@ -60,8 +62,8 @@ export class UpdateTaskDto {
   @IsOptional() @IsString() @IsNotEmpty() @MaxLength(300) title?: string;
   @IsOptional() @IsString() @MaxLength(20000) description?: string;
   @IsOptional() @IsEnum(PmPriority) priority?: PmPriority;
-  /** null clears the assignee. */
-  @IsOptional() assigneeId?: string | null;
+  /** The full set of assignees. It replaces the current set and may not be empty. */
+  @IsOptional() @IsArray() @ArrayMaxSize(20) @IsUUID('all', { each: true }) assigneeIds?: string[];
   /** null clears the due date. */
   @IsOptional() dueDate?: string | null;
   @IsOptional() @IsArray() @IsUUID('all', { each: true }) labelIds?: string[];

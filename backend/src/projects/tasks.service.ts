@@ -22,8 +22,8 @@ export interface PmTaskView {
   title: string;
   description: string | null;
   priority: PmPriority;
-  assigneeId: string | null;
-  assigneeName: string | null;
+  /** Everyone working on the task, earliest-added first. Empty means unassigned. */
+  assignees: Array<{ id: string; name: string }>;
   dueDate: string | null;
   position: number;
   createdBy: string;
@@ -50,8 +50,9 @@ export class TasksService {
   async hydrate(tasks: PmTask[], projectKeys?: Map<string, string>): Promise<PmTaskView[]> {
     if (tasks.length === 0) return [];
     const ids = tasks.map((t) => t.id);
-    const assigneeIds = [...new Set(tasks.map((t) => t.assigneeId).filter((x): x is string => !!x))];
     const projectIds = [...new Set(tasks.map((t) => t.projectId))];
+    const assigneeRows = await this.prisma.pmTaskAssignee.findMany({ where: { taskId: { in: ids } }, orderBy: { createdAt: 'asc' } });
+    const assigneeIds = [...new Set(assigneeRows.map((a) => a.userId))];
     const [users, labels, counts, projs] = await Promise.all([
       this.prisma.user.findMany({ where: { id: { in: assigneeIds } }, select: { id: true, fullName: true } }),
       this.prisma.pmTaskLabel.findMany({ where: { taskId: { in: ids } } }),
@@ -65,6 +66,10 @@ export class TasksService {
     const labelMap = new Map<string, string[]>();
     for (const l of labels) labelMap.set(l.taskId, [...(labelMap.get(l.taskId) ?? []), l.labelId]);
     const countMap = new Map(counts.map((c) => [c.taskId, c._count._all]));
+    const assigneeMap = new Map<string, Array<{ id: string; name: string }>>();
+    for (const a of assigneeRows) {
+      assigneeMap.set(a.taskId, [...(assigneeMap.get(a.taskId) ?? []), { id: a.userId, name: names.get(a.userId) ?? 'Former member' }]);
+    }
     return tasks.map((t) => ({
       id: t.id,
       ref: `${keys.get(t.projectId)}-${t.number}`,
@@ -75,8 +80,7 @@ export class TasksService {
       title: t.title,
       description: t.description,
       priority: t.priority,
-      assigneeId: t.assigneeId,
-      assigneeName: t.assigneeId ? (names.get(t.assigneeId) ?? null) : null,
+      assignees: assigneeMap.get(t.id) ?? [],
       dueDate: t.dueDate,
       position: t.position,
       createdBy: t.createdBy,
@@ -97,9 +101,13 @@ export class TasksService {
     const doneIds = columns.filter((c) => c.type === 'done').map((c) => c.id);
 
     const and: Prisma.PmTaskWhereInput[] = [{ projectId: project.id, archivedAt: null }];
-    if (q.assignee === 'me') and.push({ assigneeId: userId });
-    else if (q.assignee === 'none') and.push({ assigneeId: null });
-    else if (q.assignee) and.push({ assigneeId: q.assignee });
+    if (q.assignee === 'none') {
+      const assigned = await this.prisma.pmTaskAssignee.findMany({ select: { taskId: true }, distinct: ['taskId'] });
+      and.push({ id: { notIn: assigned.map((a) => a.taskId) } });
+    } else if (q.assignee) {
+      const mine = await this.prisma.pmTaskAssignee.findMany({ where: { userId: q.assignee === 'me' ? userId : q.assignee }, select: { taskId: true } });
+      and.push({ id: { in: mine.map((a) => a.taskId) } });
+    }
     if (q.priority) and.push({ priority: q.priority });
     if (q.label) and.push({ id: { in: (await this.prisma.pmTaskLabel.findMany({ where: { labelId: q.label } })).map((l) => l.taskId) } });
     if (q.due === 'overdue') and.push({ dueDate: { lt: today }, columnId: { notIn: doneIds } });
@@ -176,17 +184,35 @@ export class TasksService {
 
   // --- Writes ------------------------------------------------------------
 
-  private async assertAssignable(assigneeId?: string | null) {
-    if (!assigneeId) return;
-    const user = await this.prisma.user.findUnique({ where: { id: assigneeId }, select: { isActive: true } });
-    if (!user?.isActive) throw new BadRequestException('That person cannot be assigned tasks');
+  /** Checks that everyone named can take work (active accounts) and returns the ids without duplicates. */
+  private async assertAssignable(ids: string[]): Promise<string[]> {
+    const unique = [...new Set(ids)];
+    if (unique.length === 0) return unique;
+    const active = await this.prisma.user.count({ where: { id: { in: unique }, isActive: true } });
+    if (active !== unique.length) throw new BadRequestException('That person cannot be assigned tasks');
+    return unique;
+  }
+
+  /** Records new assignees on a task, logs who was added and tells each of them (except the actor). */
+  private async addAssignees(tx: Prisma.TransactionClient, task: { id: string; projectId: string }, ids: string[], actorId: string) {
+    if (ids.length === 0) return;
+    await tx.pmTaskAssignee.createMany({ data: ids.map((userId) => ({ taskId: task.id, userId })), skipDuplicates: true });
+    const names = await this.userNames(ids);
+    await this.activity.log(tx, {
+      projectId: task.projectId,
+      taskId: task.id,
+      actorId,
+      type: 'task.assigned',
+      meta: { added: ids.map((id) => names.get(id) ?? 'Someone') },
+    });
+    await this.activity.notify(tx, ids, { type: 'task.assigned', taskId: task.id, actorId });
   }
 
   async create(actor: PmActor, key: string, dto: CreateTaskDto): Promise<PmTaskView> {
     this.access.assert(actor, 'task.create');
     const project = await this.projects.getByKey(key);
     if (project.status === 'archived') throw new BadRequestException('This project is archived');
-    await this.assertAssignable(dto.assigneeId);
+    const assigneeIds = await this.assertAssignable(dto.assigneeIds ?? []);
 
     const column: PmColumn | null = dto.columnId
       ? await this.prisma.pmColumn.findFirst({ where: { id: dto.columnId, projectId: project.id } })
@@ -205,7 +231,6 @@ export class TasksService {
           title: dto.title.trim(),
           description: dto.description,
           priority: dto.priority ?? 'medium',
-          assigneeId: dto.assigneeId ?? null,
           dueDate: dto.dueDate ?? null,
           position: positionBetween(last?.position ?? null, null),
           createdBy: actor.userId,
@@ -218,16 +243,7 @@ export class TasksService {
         await tx.pmTaskLabel.createMany({ data: valid.map((l) => ({ taskId: created.id, labelId: l.id })) });
       }
       await this.activity.log(tx, { projectId: project.id, taskId: created.id, actorId: actor.userId, type: 'task.created' });
-      if (created.assigneeId) {
-        await this.activity.log(tx, {
-          projectId: project.id,
-          taskId: created.id,
-          actorId: actor.userId,
-          type: 'task.assigned',
-          meta: { from: null, to: created.assigneeId },
-        });
-        await this.activity.notify(tx, [created.assigneeId], { type: 'task.assigned', taskId: created.id, actorId: actor.userId });
-      }
+      await this.addAssignees(tx, created, assigneeIds, actor.userId);
       return created;
     });
     return (await this.hydrate([task], new Map([[project.id, project.key]])))[0];
@@ -236,13 +252,17 @@ export class TasksService {
   async update(actor: PmActor, ref: string, dto: UpdateTaskDto): Promise<PmTaskView> {
     this.access.assert(actor, 'task.edit');
     const task = await this.findTask(ref);
-    if (dto.assigneeId) await this.assertAssignable(dto.assigneeId);
+    // Assignees are replaced as a set. A task that has people on it can never be left with nobody.
+    let wanted: string[] | null = null;
+    if (dto.assigneeIds !== undefined) {
+      if (dto.assigneeIds.length === 0) throw new BadRequestException('A task needs at least one assignee');
+      wanted = await this.assertAssignable(dto.assigneeIds);
+    }
 
     const data: Prisma.PmTaskUpdateInput = {};
     if (dto.title !== undefined) data.title = dto.title.trim();
     if (dto.description !== undefined) data.description = dto.description;
     if (dto.priority !== undefined) data.priority = dto.priority;
-    if (dto.assigneeId !== undefined) data.assigneeId = dto.assigneeId;
     if (dto.dueDate !== undefined) {
       if (dto.dueDate !== null && !/^\d{4}-\d{2}-\d{2}$/.test(dto.dueDate)) throw new BadRequestException('Invalid date');
       data.dueDate = dto.dueDate;
@@ -257,9 +277,16 @@ export class TasksService {
       if (dto.dueDate !== undefined && dto.dueDate !== task.dueDate) {
         await this.activity.log(tx, { ...base, type: 'due.changed', meta: { from: task.dueDate, to: dto.dueDate } });
       }
-      if (dto.assigneeId !== undefined && dto.assigneeId !== task.assigneeId) {
-        await this.activity.log(tx, { ...base, type: 'task.assigned', meta: { from: task.assigneeId, to: dto.assigneeId } });
-        await this.activity.notify(tx, [dto.assigneeId], { type: 'task.assigned', taskId: task.id, actorId: actor.userId });
+      if (wanted) {
+        const current = (await tx.pmTaskAssignee.findMany({ where: { taskId: task.id } })).map((a) => a.userId);
+        const added = wanted.filter((id) => !current.includes(id));
+        const removed = current.filter((id) => !wanted.includes(id));
+        if (removed.length) {
+          await tx.pmTaskAssignee.deleteMany({ where: { taskId: task.id, userId: { in: removed } } });
+          const names = await this.userNames(removed);
+          await this.activity.log(tx, { ...base, type: 'task.assigned', meta: { removed: removed.map((id) => names.get(id) ?? 'Someone') } });
+        }
+        await this.addAssignees(tx, task, added, actor.userId);
       }
       if (dto.labelIds) {
         const valid = await tx.pmLabel.findMany({ where: { id: { in: dto.labelIds }, projectId: task.projectId } });
@@ -350,7 +377,8 @@ export class TasksService {
     const update = await this.prisma.$transaction(async (tx) => {
       const u = await tx.pmUpdate.create({ data: { taskId: task.id, authorId: actor.userId, body } });
       await this.activity.log(tx, { projectId: task.projectId, taskId: task.id, actorId: actor.userId, type: 'update.posted' });
-      await this.activity.notify(tx, [task.assigneeId, task.createdBy], { type: 'update.posted', taskId: task.id, actorId: actor.userId });
+      const assignees = (await tx.pmTaskAssignee.findMany({ where: { taskId: task.id } })).map((a) => a.userId);
+      await this.activity.notify(tx, [...assignees, task.createdBy], { type: 'update.posted', taskId: task.id, actorId: actor.userId });
       return u;
     });
     const names = await this.userNames([actor.userId]);
@@ -365,7 +393,8 @@ export class TasksService {
       SELECT t.* FROM pm_tasks t
       JOIN pm_columns c ON c.id = t.columnId
       JOIN pm_projects p ON p.id = t.projectId
-      WHERE t.assigneeId = ${userId} AND t.archivedAt IS NULL AND c.type <> 'done' AND p.status = 'active'
+      JOIN pm_task_assignees ta ON ta.taskId = t.id AND ta.userId = ${userId}
+      WHERE t.archivedAt IS NULL AND c.type <> 'done' AND p.status = 'active'
       ORDER BY (t.dueDate IS NULL), t.dueDate ASC, t.updatedAt DESC
       LIMIT 500`;
     const tasks = await this.hydrate(rows);
@@ -446,8 +475,10 @@ export class TasksService {
     let sent = 0;
     for (const [type, date] of [['task.due_today', today], ['task.due_soon', addDays(today, 1)]] as const) {
       const due = await this.prisma.$queryRaw<Array<{ id: string; assigneeId: string }>>`
-        SELECT t.id, t.assigneeId FROM pm_tasks t JOIN pm_columns c ON c.id = t.columnId
-        WHERE t.dueDate = ${date} AND t.assigneeId IS NOT NULL AND t.archivedAt IS NULL AND c.type <> 'done'`;
+        SELECT t.id AS id, ta.userId AS assigneeId FROM pm_tasks t
+        JOIN pm_columns c ON c.id = t.columnId
+        JOIN pm_task_assignees ta ON ta.taskId = t.id
+        WHERE t.dueDate = ${date} AND t.archivedAt IS NULL AND c.type <> 'done'`;
       for (const t of due) {
         const already = await this.prisma.pmNotification.count({
           where: { userId: t.assigneeId, taskId: t.id, type, createdAt: { gte: dayStart } },

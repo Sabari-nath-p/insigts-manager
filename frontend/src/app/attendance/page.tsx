@@ -98,7 +98,7 @@ export default async function AttendancePage({
             '0 8px 8px rgba(0,0,0,0.04), 0 4px 4px rgba(0,0,0,0.04), 0 2px 2px rgba(0,0,0,0.04), 0 0 0 1px rgba(0,0,0,0.04)',
         }}
       >
-        <div className="mb-6 flex flex-col gap-5 sm:mb-8 sm:flex-row sm:items-end sm:justify-between">
+        <div className="mb-6 flex flex-col gap-5 sm:mb-8">
           <div>
             <p className="text-[12px] uppercase tracking-[0.72px] text-muted">Attendance</p>
             <h2 className="mt-1 text-[44px] leading-none text-text sm:text-[56px]" style={{ fontWeight: 330 }}>
@@ -113,7 +113,7 @@ export default async function AttendancePage({
               aria-label="Month"
               className="rounded-full border border-border bg-surface px-4 py-2 text-sm text-text outline-none focus:border-primary"
             />
-            <Select name="status" defaultValue={status ?? ''} aria-label="Status" className="w-auto rounded-full px-4 py-2">
+            <Select name="status" defaultValue={status ?? ''} aria-label="Status" className="w-48! rounded-full px-4 py-2">
               <option value="">All statuses</option>
               {STATUS_OPTIONS.map((s) => (
                 <option key={s} value={s}>
@@ -131,7 +131,7 @@ export default async function AttendancePage({
             )}
           </form>
         </div>
-      <TableWrap>
+      <TableWrap className="[&_table]:text-[13px] [&_td]:px-1.5 [&_th]:px-1.5 [&_td:first-child]:whitespace-nowrap [&_td:last-child]:whitespace-nowrap">
         <Table>
           <Thead>
             <Th>Date</Th>

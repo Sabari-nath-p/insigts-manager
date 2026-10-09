@@ -11,7 +11,8 @@ export interface TaskPatch {
   title?: string;
   description?: string;
   priority?: Priority;
-  assigneeId?: string | null;
+  /** The full set of people on the task; replaces the current set and must not be empty. */
+  assigneeIds?: string[];
   dueDate?: string | null;
   labelIds?: string[];
 }
@@ -44,7 +45,7 @@ export function useBoardActions(projectKey: string, boardKey: readonly unknown[]
   );
 
   const createTask = useCallback(
-    async (columnId: string, title: string, extra: { assigneeId?: string } = {}) => {
+    async (columnId: string, title: string, extra: { assigneeIds?: string[] } = {}) => {
       const snapshot = read();
       const column = snapshot?.columns.find((c) => c.id === columnId);
       if (!snapshot || !column) return;
@@ -61,8 +62,7 @@ export function useBoardActions(projectKey: string, boardKey: readonly unknown[]
         title,
         description: null,
         priority: 'medium',
-        assigneeId: extra.assigneeId ?? null,
-        assigneeName: extra.assigneeId ? (memberNames.get(extra.assigneeId) ?? null) : null,
+        assignees: (extra.assigneeIds ?? []).map((id) => ({ id, name: memberNames.get(id) ?? '' })),
         dueDate: null,
         position: last + 1000,
         createdBy: '',
@@ -75,7 +75,7 @@ export function useBoardActions(projectKey: string, boardKey: readonly unknown[]
       };
       write((d) => ({ ...d, tasks: [...d.tasks, temp] }));
       try {
-        const real = await pm<PmTask>(`/projects/${projectKey}/tasks`, { method: 'POST', body: { title, columnId, assigneeId: extra.assigneeId } });
+        const real = await pm<PmTask>(`/projects/${projectKey}/tasks`, { method: 'POST', body: { title, columnId, assigneeIds: extra.assigneeIds } });
         write((d) => ({ ...d, tasks: d.tasks.map((t) => (t.id === tempId ? real : t)) }));
         afterWrite();
       } catch (e) {
@@ -113,14 +113,15 @@ export function useBoardActions(projectKey: string, boardKey: readonly unknown[]
   const patchTask = useCallback(
     async (task: PmTask, patch: TaskPatch) => {
       const snapshot = read();
+      const { assigneeIds, ...fields } = patch;
       write((d) => ({
         ...d,
         tasks: d.tasks.map((t) =>
           t.id === task.id
             ? {
                 ...t,
-                ...patch,
-                assigneeName: patch.assigneeId === undefined ? t.assigneeName : patch.assigneeId ? (memberNames.get(patch.assigneeId) ?? null) : null,
+                ...fields,
+                assignees: assigneeIds ? assigneeIds.map((id) => ({ id, name: memberNames.get(id) ?? '' })) : t.assignees,
               }
             : t,
         ),

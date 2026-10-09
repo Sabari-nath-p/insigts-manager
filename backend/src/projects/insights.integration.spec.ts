@@ -27,8 +27,11 @@ d('InsightsService against MySQL', () => {
       (['todo', 'doing', 'done'] as const).map((type, i) => prisma.pmColumn.create({ data: { projectId, name: type, type, position: i } })),
     );
     let n = 0;
-    const task = (o: Record<string, unknown>) =>
-      prisma.pmTask.create({ data: { projectId, number: ++n, title: `t${n}`, position: n, createdBy: 'admin', columnId: todo.id, ...o } as never });
+    const task = async ({ assignees = [], ...o }: Record<string, unknown> & { assignees?: string[] }) => {
+      const created = await prisma.pmTask.create({ data: { projectId, number: ++n, title: `t${n}`, position: n, createdBy: 'admin', columnId: todo.id, ...o } as never });
+      if (assignees.length) await prisma.pmTaskAssignee.createMany({ data: assignees.map((userId) => ({ taskId: created.id, userId })) });
+      return created;
+    };
 
     // Six completed in the last 10 days with cycle times 1,2,3,4,5,6 days; first five on time, last late.
     for (let i = 1; i <= 6; i++) {
@@ -38,13 +41,14 @@ d('InsightsService against MySQL', () => {
         startedAt: new Date(at(i).getTime() - i * 86_400_000), // started i days before completion
         completedAt: at(i),
         dueDate: i <= 5 ? addDays(today, 1) : addDays(today, -30),
-        assigneeId: 'm1',
+        assignees: ['m1'],
       });
     }
     // Open: 2 overdue (one idle 9 days), 1 open with no due date, 1 archived (must be ignored).
-    await task({ columnId: doing.id, dueDate: addDays(today, -3), assigneeId: 'm1', createdAt: at(9) });
-    await task({ columnId: todo.id, dueDate: addDays(today, -1), assigneeId: 'm2', createdAt: at(1) });
-    await task({ columnId: todo.id, assigneeId: 'm2', createdAt: at(1) });
+    await task({ columnId: doing.id, dueDate: addDays(today, -3), assignees: ['m1'], createdAt: at(9) });
+    await task({ columnId: todo.id, dueDate: addDays(today, -1), assignees: ['m2'], createdAt: at(1) });
+    // Shared by two people: counts as open work for both.
+    await task({ columnId: todo.id, assignees: ['m2', 'm1'], createdAt: at(1) });
     await task({ columnId: todo.id, archivedAt: new Date(), createdAt: at(1) });
   });
 
@@ -52,6 +56,7 @@ d('InsightsService against MySQL', () => {
     const ids = (await prisma.pmTask.findMany({ where: { projectId }, select: { id: true } })).map((t) => t.id);
     await prisma.pmActivity.deleteMany({ where: { projectId } });
     await prisma.pmTaskLabel.deleteMany({ where: { taskId: { in: ids } } });
+    await prisma.pmTaskAssignee.deleteMany({ where: { taskId: { in: ids } } });
     await prisma.pmTask.deleteMany({ where: { projectId } });
     await prisma.pmColumn.deleteMany({ where: { projectId } });
     await prisma.pmProject.delete({ where: { id: projectId } });
@@ -90,7 +95,10 @@ d('InsightsService against MySQL', () => {
   it('reports workload for admins only', async () => {
     const a = await service.insights(admin, { range: '30d', project: 'ITEST' });
     expect(a.workload?.find((w) => w.id === 'm2')?.open).toBe(2);
-    expect(a.workload?.find((w) => w.id === 'm1')?.open).toBe(1);
+    expect(a.workload?.find((w) => w.id === 'm1')?.open).toBe(2); // its own task plus the shared one
+    // The shared task is counted once per person, and unassigned work is not mixed in.
+    expect(a.workload?.find((w) => w.id === 'm2')?.open).toBe(2);
+    expect(a.workload?.some((w) => w.id === null)).toBe(false);
     const s = await service.insights(staff, { range: '30d', project: 'ITEST', member: 'm1' });
     expect(s.workload).toBeNull();
     expect(s.scope.member).toBeNull();

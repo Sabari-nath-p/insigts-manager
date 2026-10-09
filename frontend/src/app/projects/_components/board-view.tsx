@@ -168,7 +168,7 @@ export function BoardView({ projectKey, me, initial }: { projectKey: string; me:
                 onToggleOlder={() => setParam(OLD_DONE_PARAM, showOlder ? null : '1')}
                 adding={addingIn === column.id}
                 setAdding={(on) => setAddingIn(on ? column.id : null)}
-                onAdd={(title) => actions.createTask(column.id, title, filters.assignee === 'me' ? { assigneeId: me.userId } : {})}
+                onAdd={(title) => actions.createTask(column.id, title, filters.assignee === 'me' ? { assigneeIds: [me.userId] } : {})}
                 onOpen={openTask}
                 onChanged={actions.refetch}
               />
