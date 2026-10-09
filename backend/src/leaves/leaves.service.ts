@@ -1,6 +1,7 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { LeaveRequest, LeaveStatus, LeaveType } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import { NotificationsService } from '../notifications/notifications.service';
 import { ApplyLeaveDto } from './dto/apply-leave.dto';
 import { LeaveDecision, ReviewLeaveDto } from './dto/review-leave.dto';
 
@@ -15,7 +16,10 @@ function inclusiveDayCount(startDate: string, endDate: string): number {
 
 @Injectable()
 export class LeavesService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly notifications: NotificationsService,
+  ) {}
 
   async apply(userId: string, dto: ApplyLeaveDto): Promise<LeaveRequest> {
     const days = inclusiveDayCount(dto.startDate, dto.endDate);
@@ -69,10 +73,14 @@ export class LeavesService {
       status = LeaveStatus.approved;
     }
 
-    return this.prisma.leaveRequest.update({
+    const reviewed = await this.prisma.leaveRequest.update({
       where: { id: leaveId },
       data: { status, type, reviewedBy: reviewerId, reviewedAt: new Date(), reviewNote: dto.note ?? null },
     });
+    if (status === LeaveStatus.approved) {
+      this.notifications.leaveApproved(reviewed.userId, reviewed.startDate, reviewed.endDate, reviewed.type);
+    }
+    return reviewed;
   }
 
   /** True iff any leave request (regardless of status) already spans this date. */
