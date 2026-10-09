@@ -28,7 +28,6 @@ Default: `super_admin` users are Admin, everyone else is Staff. An admin can pro
    `cd backend && npx prisma migrate deploy`
    If it was created another way (no `_prisma_migrations` table), run `backend/prisma/migrations/20261005000000_pm_init/migration.sql` against the database. It only creates new tables.
 2. Rebuild and restart the backend and frontend as usual.
-3. Optional demo data (writes only `pm_*`, uses existing active users as people): `cd backend && npm run pm:seed`. It refuses to run when projects already exist; `-- --reset` replaces earlier project-management data only. `PM_SEED_TASKS_PER_PROJECT` controls size (default 60 per project, 5 projects).
 
 No new environment variables are needed.
 
