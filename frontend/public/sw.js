@@ -1,4 +1,5 @@
-/* Service worker for browser push alerts. It only shows notifications and opens the site. */
+/* Service worker for browser alerts delivered through Firebase Cloud Messaging.
+   It only shows notifications and opens the site; it does not need the Firebase SDK. */
 
 self.addEventListener('install', () => self.skipWaiting());
 self.addEventListener('activate', (event) => event.waitUntil(self.clients.claim()));
@@ -6,7 +7,9 @@ self.addEventListener('activate', (event) => event.waitUntil(self.clients.claim(
 self.addEventListener('push', (event) => {
   let data = {};
   try {
-    data = event.data ? event.data.json() : {};
+    const message = event.data ? event.data.json() : {};
+    // Firebase wraps our fields in a "data" object (or "notification" for display messages).
+    data = message.data || message.notification || message;
   } catch (e) {
     data = { title: event.data ? event.data.text() : 'Insights' };
   }

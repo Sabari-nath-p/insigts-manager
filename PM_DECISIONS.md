@@ -43,7 +43,7 @@ One line each: decision, then reason. `PM_BUILD_PLAN.md` is the source brief; wh
 - No invite, password-reset or avatar flows, and no email notifier. Accounts, passwords and profile live in the existing app. Reason: out of scope once users are shared.
 
 ## Notifications (branch notifications)
-- Browser push uses free Web Push with VAPID keys; no paid provider. Reason: asked for no cost.
+- Browser alerts were first built on plain Web Push with VAPID keys; switched to Firebase Cloud Messaging at the owner's request (branch firebase). FCM is free but needs a Firebase project.
 - Presence announcements fire from the two places a status is saved (attendance sync and the manual status endpoint), via a global notifications module with no dependency on attendance. Reason: smallest edit to existing modules, no circular imports.
 - Announced: started, paused, resumed. Silent: meeting, leave, check-out, work logs. Reason: what was asked; one function to widen.
 - Reminder and Projects due-date job both run at 10:00 company time (APP_TIMEZONE) and are registered at startup, not with decorators, so the timezone comes from the loaded environment.
@@ -55,3 +55,9 @@ One line each: decision, then reason. `PM_BUILD_PLAN.md` is the source brief; wh
 - Neue Haas Grotesk Display is a paid font, so titles use Inter at weight 330 (design.md names Inter Display at light weights as the open substitute). Page titles are 32-40px, not 48px+, because they sit in a working app and not a marketing hero.
 - Status and priority colours (red overdue, orange and blue priority dots, green and red badges) are kept: they carry meaning, not branding.
 - The global link colour reset moved into the base CSS layer so link-styled buttons keep their own text colour.
+
+## Firebase switch
+- Same alerts, same bell; only delivery changed. The server sends data-only FCM messages and our own service worker (public/sw.js) displays them, so click handling is unchanged.
+- Firebase settings live only in the backend env. The public web settings are served to browsers by GET /api/notifications/config, so the frontend needs no new env and no rebuild when they change.
+- New table fcm_tokens (additive). The old push_subscriptions table and model stay, unused, so nothing is dropped.
+- web-push was removed from the backend; firebase-admin (server) and firebase (browser, loaded only when someone turns alerts on) were added.

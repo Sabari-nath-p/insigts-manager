@@ -1,17 +1,25 @@
 'use client';
 
-/** Browser side of Web Push: permission, service worker, subscription. */
+/**
+ * Browser side of Firebase Cloud Messaging: permission, service worker, token.
+ * The Firebase SDK is loaded only when someone turns alerts on, so it never weighs down normal pages.
+ */
 
 export type PushState = 'unsupported' | 'unconfigured' | 'blocked' | 'off' | 'on';
 
-function supported(): boolean {
-  return typeof window !== 'undefined' && 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
+interface FirebaseWebConfig {
+  apiKey: string;
+  projectId: string;
+  messagingSenderId: string;
+  appId: string;
+  vapidKey: string;
 }
 
-function keyToBytes(base64Url: string): Uint8Array {
-  const padded = (base64Url + '='.repeat((4 - (base64Url.length % 4)) % 4)).replace(/-/g, '+').replace(/_/g, '/');
-  const raw = atob(padded);
-  return Uint8Array.from(raw, (c) => c.charCodeAt(0));
+/** Remembers which FCM token this browser registered, so we can show the right state and remove it later. */
+const TOKEN_KEY = 'insights_fcm_token';
+
+function supported(): boolean {
+  return typeof window !== 'undefined' && 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
 }
 
 async function api<T>(path: string, method = 'GET', body?: unknown): Promise<T> {
@@ -24,40 +32,71 @@ async function api<T>(path: string, method = 'GET', body?: unknown): Promise<T> 
   return (await res.json()) as T;
 }
 
-async function currentSubscription(): Promise<PushSubscription | null> {
-  const reg = await navigator.serviceWorker.getRegistration('/sw.js');
-  return reg ? reg.pushManager.getSubscription() : null;
+const readConfig = async () => (await api<{ firebase: FirebaseWebConfig | null }>('/config')).firebase;
+
+function storedToken(): string | null {
+  try {
+    return localStorage.getItem(TOKEN_KEY);
+  } catch {
+    return null;
+  }
+}
+
+async function messagingFor(cfg: FirebaseWebConfig) {
+  const [app, messaging] = await Promise.all([import('firebase/app'), import('firebase/messaging')]);
+  if (!(await messaging.isSupported())) return null;
+  const instance = app.getApps().length
+    ? app.getApp()
+    : app.initializeApp({ apiKey: cfg.apiKey, projectId: cfg.projectId, messagingSenderId: cfg.messagingSenderId, appId: cfg.appId });
+  return { sdk: messaging, messaging: messaging.getMessaging(instance) };
 }
 
 export async function getPushState(): Promise<PushState> {
   if (!supported()) return 'unsupported';
-  const { publicKey } = await api<{ publicKey: string | null }>('/config');
-  if (!publicKey) return 'unconfigured';
+  if (!(await readConfig())) return 'unconfigured';
   if (Notification.permission === 'denied') return 'blocked';
-  return (await currentSubscription()) && Notification.permission === 'granted' ? 'on' : 'off';
+  return Notification.permission === 'granted' && storedToken() ? 'on' : 'off';
 }
 
-/** Asks for permission (must be called from a click), subscribes this device and registers it. */
+/** Asks for permission (must be called from a click), gets this browser's token and registers it. */
 export async function enablePush(): Promise<PushState> {
   if (!supported()) return 'unsupported';
-  const { publicKey } = await api<{ publicKey: string | null }>('/config');
-  if (!publicKey) return 'unconfigured';
+  const cfg = await readConfig();
+  if (!cfg) return 'unconfigured';
   const permission = await Notification.requestPermission();
   if (permission !== 'granted') return permission === 'denied' ? 'blocked' : 'off';
-  const reg = await navigator.serviceWorker.register('/sw.js');
+
+  const fcm = await messagingFor(cfg);
+  if (!fcm) return 'unsupported';
+  const registration = await navigator.serviceWorker.register('/sw.js');
   await navigator.serviceWorker.ready;
-  const sub =
-    (await reg.pushManager.getSubscription()) ??
-    (await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: keyToBytes(publicKey) as BufferSource }));
-  await api('/subscribe', 'POST', sub.toJSON());
+  const token = await fcm.sdk.getToken(fcm.messaging, { vapidKey: cfg.vapidKey, serviceWorkerRegistration: registration });
+  if (!token) throw new Error('Firebase did not return a token');
+  await api('/subscribe', 'POST', { token });
+  try {
+    localStorage.setItem(TOKEN_KEY, token);
+  } catch {
+    /* storage unavailable: alerts still work, the switch just cannot remember its state */
+  }
   return 'on';
 }
 
 export async function disablePush(): Promise<PushState> {
-  const sub = supported() ? await currentSubscription() : null;
-  if (sub) {
-    await api('/unsubscribe', 'POST', { endpoint: sub.endpoint });
-    await sub.unsubscribe();
+  const token = storedToken();
+  if (token) {
+    await api('/unsubscribe', 'POST', { token });
+    try {
+      const cfg = await readConfig();
+      const fcm = cfg ? await messagingFor(cfg) : null;
+      if (fcm) await fcm.sdk.deleteToken(fcm.messaging);
+    } catch {
+      /* the server already forgot this device; a stale token on the browser side is harmless */
+    }
+    try {
+      localStorage.removeItem(TOKEN_KEY);
+    } catch {
+      /* ignore */
+    }
   }
   return 'off';
 }
