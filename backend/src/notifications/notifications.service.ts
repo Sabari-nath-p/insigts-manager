@@ -67,6 +67,30 @@ export class NotificationsService {
     );
   }
 
+  /**
+   * Tells every active employee that someone's leave was approved (and tells the person themselves).
+   * Fire-and-forget: a notification problem must never fail the approval itself.
+   */
+  leaveApproved(userId: string, startDate: string, endDate: string, type: string): void {
+    this.announceLeave(userId, startDate, endDate, type).catch((e) => this.logger.warn(`Leave notification failed: ${(e as Error).message}`));
+  }
+
+  private async announceLeave(userId: string, startDate: string, endDate: string, type: string) {
+    const [person, users] = await Promise.all([
+      this.prisma.user.findUnique({ where: { id: userId }, select: { fullName: true } }),
+      this.prisma.user.findMany({ where: { isActive: true }, select: { id: true } }),
+    ]);
+    if (!person) return;
+    const fmt = (d: string) => new Date(`${d}T00:00:00Z`).toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' });
+    const range = startDate === endDate ? fmt(startDate) : `${fmt(startDate)} to ${fmt(endDate)}`;
+    const kind = type === 'unpaid' ? 'unpaid leave' : type === 'medical' ? 'medical leave' : 'paid leave';
+    await this.notifyUsers(
+      users.filter((u) => u.id !== userId).map((u) => u.id),
+      { type: 'leave.approved', title: `${person.fullName} will be on leave`, body: `${range} (${kind})`, link: '/status', actorId: userId },
+    );
+    await this.notifyUsers([userId], { type: 'leave.approved.self', title: 'Your leave was approved', body: `${range} (${kind})`, link: '/leaves' });
+  }
+
   async list(userId: string) {
     const [items, unread] = await Promise.all([
       this.prisma.appNotification.findMany({ where: { userId }, orderBy: { createdAt: 'desc' }, take: 30 }),

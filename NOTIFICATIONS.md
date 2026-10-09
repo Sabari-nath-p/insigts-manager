@@ -9,10 +9,11 @@ Workspace alerts for everyone. Browser alerts are delivered by Firebase Cloud Me
 | Someone pauses for a break | Every other active employee | Bell + browser alert |
 | Someone is back from a break | Every other active employee | Bell + browser alert |
 | 10:00 login reminder | Anyone expected to work today who has not checked in | Bell + browser alert |
-| Task assigned to you, update on your task, your task completed | The assignee / creator | Projects bell + browser alert |
+| Leave approved (including a paid request converted to unpaid) | Every other active employee, plus a confirmation to the person | Bell + browser alert |
+| Added to a task (also as a second or third assignee), update on your task, your task completed | Each assignee / the creator | Projects bell + browser alert |
 | Task due today, task due tomorrow (sent at 10:00) | The assignee | Projects bell + browser alert |
 
-Not announced: check-out, meetings, leave, and work-log updates. The person who acted is never notified about their own action, and the same person repeating the same action within a minute is announced once.
+Not announced: check-out, meetings, leave requests that are only applied for or are rejected, and work-log updates. The person who acted is never notified about their own action, and the same person repeating the same action within a minute is announced once.
 
 "Expected to work today" follows the same rules the nightly auto-leave job uses: the person's working days (flexible employees: Monday to Friday), the second-Saturday setting, department holidays, and approved leave. Times use `APP_TIMEZONE` (default Asia/Kolkata).
 

@@ -3,7 +3,7 @@
 import { useMemo, useState } from 'react';
 import { ArrowDown, ArrowUp } from 'lucide-react';
 import { cn } from '@/lib/cn';
-import { Avatar } from '@/components/ui/avatar';
+import { AvatarStack } from './avatar-stack';
 import { PRIORITY_COLOR, PRIORITY_LABEL, formatDue, isOverdue } from '@/lib/pm/format';
 import type { BoardData, PmTask } from '@/lib/pm/types';
 
@@ -28,7 +28,7 @@ export function ListView({ tasks, data, onOpen }: { tasks: PmTask[]; data: Board
         case 'priority':
           return PRIORITY_RANK[t.priority];
         case 'assignee':
-          return (t.assigneeName ?? '￿').toLowerCase();
+          return (t.assignees[0]?.name ?? '￿').toLowerCase();
         case 'due':
           return t.dueDate ?? '9999';
       }
@@ -78,10 +78,10 @@ export function ListView({ tasks, data, onOpen }: { tasks: PmTask[]; data: Board
                   </span>
                 </td>
                 <td className="px-3 py-1.5">
-                  {t.assigneeName ? (
-                    <span className="flex items-center gap-1.5 text-text">
-                      <Avatar name={t.assigneeName} size="sm" />
-                      <span className="truncate">{t.assigneeName}</span>
+                  {t.assignees.length > 0 ? (
+                    <span className="flex items-center gap-2 text-text">
+                      <AvatarStack people={t.assignees} />
+                      <span className="truncate">{t.assignees.map((a) => a.name).join(', ')}</span>
                     </span>
                   ) : (
                     <span className="text-muted">Unassigned</span>

@@ -13,6 +13,7 @@ import { pm, pollEvery } from '@/lib/pm/client';
 import { activityText, relativeTime } from '@/lib/pm/format';
 import type { useBoardActions } from '@/lib/pm/use-board-actions';
 import type { BoardData, PmMe, PmTask, Priority, TaskDetail, TaskUpdate } from '@/lib/pm/types';
+import { AssigneePicker } from './assignee-picker';
 import { ConfirmDialog } from './dialogs';
 import { useToast } from './providers';
 
@@ -192,16 +193,9 @@ function DrawerBody({
               ))}
             </select>
           </dd>
-          <dt className="text-muted">Assignee</dt>
+          <dt className="self-start pt-1 text-muted">Assignees</dt>
           <dd>
-            <select aria-label="Assignee" className={FIELD} value={task.assigneeId ?? ''} onChange={(e) => actions.patchTask(task, { assigneeId: e.target.value || null })}>
-              <option value="">Unassigned</option>
-              {data.members.map((m) => (
-                <option key={m.id} value={m.id}>
-                  {m.fullName}
-                </option>
-              ))}
-            </select>
+            <AssigneePicker assignees={task.assignees} members={data.members} onChange={(assigneeIds) => actions.patchTask(task, { assigneeIds })} />
           </dd>
           <dt className="text-muted">Priority</dt>
           <dd>

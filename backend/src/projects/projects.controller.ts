@@ -201,8 +201,9 @@ export class ProjectsController {
     const [members, open, last, overrides] = await Promise.all([
       this.tasks.members(),
       this.prisma.$queryRaw<Array<{ assigneeId: string; v: bigint }>>`
-        SELECT t.assigneeId AS assigneeId, COUNT(*) AS v FROM pm_tasks t JOIN pm_columns c ON c.id = t.columnId
-        WHERE t.assigneeId IS NOT NULL AND t.archivedAt IS NULL AND c.type <> 'done' GROUP BY t.assigneeId`,
+        SELECT ta.userId AS assigneeId, COUNT(*) AS v FROM pm_task_assignees ta
+        JOIN pm_tasks t ON t.id = ta.taskId JOIN pm_columns c ON c.id = t.columnId
+        WHERE t.archivedAt IS NULL AND c.type <> 'done' GROUP BY ta.userId`,
       this.prisma.$queryRaw<Array<{ actorId: string; at: Date }>>`SELECT actorId, MAX(createdAt) AS at FROM pm_activity GROUP BY actorId`,
       this.prisma.pmMember.findMany(),
     ]);

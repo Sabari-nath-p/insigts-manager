@@ -34,7 +34,7 @@ export class InsightsService {
   /** Optional project / assignee narrowing applied to the task alias `t`. */
   private scope(projectId: string | null, memberId: string | null): Prisma.Sql {
     return Prisma.sql`${projectId ? Prisma.sql`AND t.projectId = ${projectId}` : Prisma.empty} ${
-      memberId ? Prisma.sql`AND t.assigneeId = ${memberId}` : Prisma.empty
+      memberId ? Prisma.sql`AND EXISTS (SELECT 1 FROM pm_task_assignees ta WHERE ta.taskId = t.id AND ta.userId = ${memberId})` : Prisma.empty
     }`;
   }
 
@@ -107,22 +107,24 @@ export class InsightsService {
         GROUP BY t.projectId, c.name, c.type, c.position ORDER BY c.position`,
       canMembers
         ? this.prisma.$queryRaw<Array<{ assigneeId: string | null; priority: string; v: bigint }>>`
-            SELECT t.assigneeId AS assigneeId, t.priority AS priority, COUNT(*) AS v
-            FROM pm_tasks t JOIN pm_columns c ON c.id = t.columnId WHERE ${openWhere} ${scope}
-            GROUP BY t.assigneeId, t.priority`
+            SELECT ta.userId AS assigneeId, t.priority AS priority, COUNT(*) AS v
+            FROM pm_tasks t JOIN pm_columns c ON c.id = t.columnId
+            LEFT JOIN pm_task_assignees ta ON ta.taskId = t.id
+            WHERE ${openWhere} ${scope}
+            GROUP BY ta.userId, t.priority`
         : Promise.resolve([]),
-      this.prisma.$queryRaw<Array<{ id: string; projectId: string; number: number; title: string; assigneeId: string | null; changedAt: Date; colName: string }>>`
-        SELECT t.id AS id, t.projectId AS projectId, t.number AS number, t.title AS title, t.assigneeId AS assigneeId,
+      this.prisma.$queryRaw<Array<{ id: string; projectId: string; number: number; title: string; changedAt: Date; colName: string }>>`
+        SELECT t.id AS id, t.projectId AS projectId, t.number AS number, t.title AS title,
                ${lastChange} AS changedAt, c.name AS colName
         FROM pm_tasks t JOIN pm_columns c ON c.id = t.columnId
         WHERE ${openWhere} AND ${lastChange} < ${stuckCutoff} ${scope}
         ORDER BY changedAt ASC LIMIT 200`,
-      this.prisma.$queryRaw<Array<{ id: string; projectId: string; number: number; title: string; assigneeId: string | null; dueDate: string }>>`
-        (SELECT t.id AS id, t.projectId AS projectId, t.number AS number, t.title AS title, t.assigneeId AS assigneeId, t.dueDate AS dueDate
+      this.prisma.$queryRaw<Array<{ id: string; projectId: string; number: number; title: string; dueDate: string }>>`
+        (SELECT t.id AS id, t.projectId AS projectId, t.number AS number, t.title AS title, t.dueDate AS dueDate
           FROM pm_tasks t JOIN pm_columns c ON c.id = t.columnId
           WHERE ${openWhere} AND t.dueDate < ${today} ${scope} ORDER BY t.dueDate DESC LIMIT 15)
         UNION ALL
-        (SELECT t.id AS id, t.projectId AS projectId, t.number AS number, t.title AS title, t.assigneeId AS assigneeId, t.dueDate AS dueDate
+        (SELECT t.id AS id, t.projectId AS projectId, t.number AS number, t.title AS title, t.dueDate AS dueDate
           FROM pm_tasks t JOIN pm_columns c ON c.id = t.columnId
           WHERE ${openWhere} AND t.dueDate >= ${today} AND t.dueDate <= ${addDays(today, 14)} ${scope} ORDER BY t.dueDate ASC LIMIT 100)`,
       this.prisma.$queryRaw<Array<{ priority: string; v: bigint }>>`
@@ -154,14 +156,23 @@ export class InsightsService {
     const completed = n(doneRow[0]?.v);
     const completedPrev = n(donePrevRow[0]?.v);
     const onTimeTotal = n(onTimeRow[0]?.total);
+    // Everyone on each listed task, so a task shared by two people shows both names.
+    const listedIds = [...stuckRows.map((r) => r.id), ...dueRows.map((r) => r.id)];
+    const assignmentRows = listedIds.length
+      ? await this.prisma.pmTaskAssignee.findMany({ where: { taskId: { in: listedIds } }, orderBy: { createdAt: 'asc' } })
+      : [];
+    const assignedTo = new Map<string, string[]>();
+    for (const a of assignmentRows) assignedTo.set(a.taskId, [...(assignedTo.get(a.taskId) ?? []), a.userId]);
+    const namesFor = (taskId: string) => (assignedTo.get(taskId) ?? []).map((id) => names.get(id) ?? 'Former member').join(', ') || null;
+
     const stuck = stuckRows.map((r) => ({
       id: r.id,
       ref: refOf(r),
       title: r.title,
       project: projectMap.get(r.projectId)?.name ?? '',
       column: r.colName,
-      assigneeId: r.assigneeId,
-      assignee: r.assigneeId ? (names.get(r.assigneeId) ?? null) : null,
+      assigneeId: assignedTo.get(r.id)?.[0] ?? null,
+      assignee: namesFor(r.id),
       daysIdle: Math.floor((Date.now() - new Date(r.changedAt).getTime()) / 86_400_000),
     }));
 
@@ -171,7 +182,7 @@ export class InsightsService {
       title: r.title,
       dueDate: r.dueDate,
       overdue: r.dueDate < today,
-      assignee: r.assigneeId ? (names.get(r.assigneeId) ?? null) : null,
+      assignee: namesFor(r.id),
     }));
 
     const priorities = ['urgent', 'high', 'medium', 'low'];
@@ -263,7 +274,7 @@ export class InsightsService {
     const weekFrom = new Date(`${addDays(today, -6)}T00:00:00Z`);
     const monthFrom = new Date(`${today.slice(0, 7)}-01T00:00:00Z`);
     const spark = new Date(`${addDays(today, -83)}T00:00:00Z`);
-    const mine = Prisma.sql`t.assigneeId = ${userId} AND t.archivedAt IS NULL`;
+    const mine = Prisma.sql`EXISTS (SELECT 1 FROM pm_task_assignees ta WHERE ta.taskId = t.id AND ta.userId = ${userId}) AND t.archivedAt IS NULL`;
     const [week, month, open, overdue, weekly] = await Promise.all([
       this.prisma.$queryRaw<Array<{ v: bigint }>>`SELECT COUNT(*) AS v FROM pm_tasks t WHERE ${mine} AND t.completedAt >= ${weekFrom}`,
       this.prisma.$queryRaw<Array<{ v: bigint }>>`SELECT COUNT(*) AS v FROM pm_tasks t WHERE ${mine} AND t.completedAt >= ${monthFrom}`,
@@ -273,7 +284,7 @@ export class InsightsService {
         SELECT DATE_FORMAT(t.completedAt, '%Y-%m-%d') AS d, COUNT(*) AS v FROM pm_tasks t
         WHERE ${mine} AND t.completedAt >= ${spark} GROUP BY d`,
     ]);
-    const cycle = await this.medianCycleDays({ from: addDays(today, -89), to: today }, Prisma.sql`AND t.assigneeId = ${userId}`);
+    const cycle = await this.medianCycleDays({ from: addDays(today, -89), to: today }, Prisma.sql`AND EXISTS (SELECT 1 FROM pm_task_assignees ta WHERE ta.taskId = t.id AND ta.userId = ${userId})`);
     const days = fillDays({ from: addDays(today, -83), to: today }, new Map(weekly.map((r) => [r.d, n(r.v)])));
     return {
       completedWeek: n(week[0]?.v),

@@ -7,7 +7,7 @@ Status: built and tested end to end against a disposable MySQL. Not yet run agai
 - **Phases 2-6, app:** shell with sidebar, search palette, notification bell, shortcuts; project list; board with filters in the URL, drag and drop (pointer and keyboard), inline add, optimistic updates, List view; task drawer with autosave, labels, markdown, updates and activity; My Work; Team with admin access control.
 - **Phase 7, insights:** five summary cards, throughput, burn-up, status by project, priority mix, workload (admin only), stuck work, due soon, project health with "How this is calculated", My stats, activity feed, three CSV exports, date range in the URL.
 - **Phase 8, polish:** skeletons, 404 and error pages, toasts with Undo, responsive at 375, 768 and 1440 px (checked from screenshots).
-- **Phase 9, seed and tests:** `npm run pm:seed` (5 projects, up to 2,000 tasks), jest unit tests, SQL tests against MySQL, Playwright smoke tests.
+- **Phase 9, tests:** jest unit tests, SQL tests against MySQL, Playwright smoke tests.
 
 ## Verification (run on this machine)
 - Backend `tsc --noEmit`: clean. Jest: 26 tests passing (19 unit, 7 SQL checks against MySQL with hand-computed numbers).

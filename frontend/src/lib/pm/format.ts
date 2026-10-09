@@ -50,8 +50,13 @@ export function activityText(type: string, meta: Record<string, unknown> | null)
       return 'created this task';
     case 'task.moved':
       return `moved it from ${m.from} to ${m.to}`;
-    case 'task.assigned':
+    case 'task.assigned': {
+      const list = (v: unknown) => (Array.isArray(v) ? v.map(String).join(', ') : '');
+      if (Array.isArray(m.added) && m.added.length) return `added ${list(m.added)} as ${m.added.length === 1 ? 'an assignee' : 'assignees'}`;
+      if (Array.isArray(m.removed) && m.removed.length) return `removed ${list(m.removed)} from the task`;
+      // Entries written before tasks could have several assignees.
       return m.to ? 'changed the assignee' : 'removed the assignee';
+    }
     case 'task.completed':
       return 'completed it';
     case 'update.posted':

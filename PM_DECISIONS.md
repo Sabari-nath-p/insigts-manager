@@ -61,3 +61,12 @@ One line each: decision, then reason. `PM_BUILD_PLAN.md` is the source brief; wh
 - Firebase settings live only in the backend env. The public web settings are served to browsers by GET /api/notifications/config, so the frontend needs no new env and no rebuild when they change.
 - New table fcm_tokens (additive). The old push_subscriptions table and model stay, unused, so nothing is dropped.
 - web-push was removed from the backend; firebase-admin (server) and firebase (browser, loaded only when someone turns alerts on) were added.
+
+## Multiple assignees and leave alerts (branch task-updates)
+- A task can have several assignees, stored in pm_task_assignees (taskId, userId). The old pm_tasks.assigneeId column stays in place, unused, and each task's old assignee was copied into the new table by the migration.
+- Assignees are replaced as a set. A task that has people on it can never end up with none (server returns 400); a task created unassigned can still get its first assignee later.
+- Everyone added gets an assignment notification; the person making the change is not told about their own action. Updates on a task notify all its assignees plus the creator. Due-date alerts go to each assignee. Insights count a shared task once per person.
+- Leave alert fires when a leave is approved, not when it is applied for. A paid or medical request that is not sanctioned is auto-converted to approved unpaid leave, and that is announced as unpaid.
+
+## No demo data
+- The demo-data seed script was removed at the owner's request. The app ships with no sample projects, and nothing in the repo can fill a database with fake data. Tests that need data create their own rows in a disposable database and remove them.

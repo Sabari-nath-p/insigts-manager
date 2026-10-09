@@ -53,8 +53,8 @@ export interface PmTask {
   title: string;
   description: string | null;
   priority: Priority;
-  assigneeId: string | null;
-  assigneeName: string | null;
+  /** Everyone working on the task, earliest-added first. Empty means unassigned. */
+  assignees: Array<{ id: string; name: string }>;
   dueDate: string | null;
   position: number;
   createdBy: string;

@@ -25,9 +25,11 @@ export function applyFilters(tasks: PmTask[], f: BoardFilters, meId: string, don
   const today = todayIso();
   const text = f.q?.trim().toLowerCase();
   return tasks.filter((t) => {
-    if (f.assignee === 'me' && t.assigneeId !== meId) return false;
-    if (f.assignee === 'none' && t.assigneeId) return false;
-    if (f.assignee && f.assignee !== 'me' && f.assignee !== 'none' && t.assigneeId !== f.assignee) return false;
+    if (f.assignee === 'none' && t.assignees.length > 0) return false;
+    if (f.assignee && f.assignee !== 'none') {
+      const who = f.assignee === 'me' ? meId : f.assignee;
+      if (!t.assignees.some((a) => a.id === who)) return false;
+    }
     if (f.priority && t.priority !== f.priority) return false;
     if (f.label && !t.labelIds.includes(f.label)) return false;
     if (f.due === 'overdue' && !(t.dueDate && t.dueDate < today && !doneColumnIds.has(t.columnId))) return false;
