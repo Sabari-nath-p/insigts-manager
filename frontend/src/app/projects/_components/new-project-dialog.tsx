@@ -1,15 +1,15 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import * as Dialog from '@radix-ui/react-dialog';
 import { X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { pm } from '@/lib/pm/client';
+import { colorsInUse, nextColor } from '@/lib/pm/colors';
 import type { PmProject } from '@/lib/pm/types';
-
-const COLORS = ['#146356', '#0075de', '#dd5b00', '#e03131', '#7a5af8', '#2a9d99', '#787671'];
+import { ColorPicker } from './color-picker';
 
 function suggestKey(name: string): string {
   const words = name.trim().toUpperCase().replace(/[^A-Z0-9 ]/g, '').split(/\s+/).filter(Boolean);
@@ -23,7 +23,18 @@ export function NewProjectDialog({ open, onOpenChange }: { open: boolean; onOpen
   const [name, setName] = useState('');
   const [key, setKey] = useState('');
   const [keyEdited, setKeyEdited] = useState(false);
-  const [color, setColor] = useState(COLORS[0]);
+  const [color, setColor] = useState(() => nextColor([]));
+
+  // Colours held by active projects cannot be picked again; archived and deleted projects give theirs back.
+  const { data: projects = [] } = useQuery({ queryKey: ['projects'], queryFn: () => pm<PmProject[]>('/projects'), enabled: open });
+  const taken = colorsInUse(projects);
+
+  // Each time the dialog opens, suggest a colour no active project is using.
+  useEffect(() => {
+    if (!open) return;
+    const inUse = colorsInUse(qc.getQueryData<PmProject[]>(['projects']) ?? []);
+    setColor(nextColor([...inUse.keys()]));
+  }, [open, qc]);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
 
@@ -87,19 +98,12 @@ export function NewProjectDialog({ open, onOpenChange }: { open: boolean; onOpen
               />
               <span className="text-xs text-muted">Tasks are numbered {key || 'KEY'}-1, {key || 'KEY'}-2 and so on.</span>
             </label>
-            <div className="flex items-center gap-2" role="radiogroup" aria-label="Colour">
-              {COLORS.map((c) => (
-                <button
-                  key={c}
-                  type="button"
-                  role="radio"
-                  aria-checked={color === c}
-                  aria-label={c}
-                  onClick={() => setColor(c)}
-                  className={`h-6 w-6 rounded-full border-2 ${color === c ? 'border-text' : 'border-transparent'}`}
-                  style={{ background: c }}
-                />
-              ))}
+            <div className="flex flex-col gap-1 text-sm text-text">
+              Colour
+              <div className="flex items-center gap-2">
+                <ColorPicker value={color} onChange={setColor} taken={taken} />
+                <span className="text-xs text-muted">Picked for you. Change it if you like.</span>
+              </div>
             </div>
             {error && <p className="text-sm text-danger">{error}</p>}
             <div className="mt-1 flex justify-end gap-2">

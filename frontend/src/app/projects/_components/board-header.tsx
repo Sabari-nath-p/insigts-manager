@@ -2,13 +2,15 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import * as Menu from '@radix-ui/react-dropdown-menu';
 import { Columns3, List, MoreHorizontal, Search, X } from 'lucide-react';
 import { cn } from '@/lib/cn';
 import { pm } from '@/lib/pm/client';
+import { colorsInUse, nextColor } from '@/lib/pm/colors';
 import { hasFilters } from '@/lib/pm/board-logic';
-import type { BoardData, BoardFilters, PmMe } from '@/lib/pm/types';
+import type { BoardData, BoardFilters, PmMe, PmProject } from '@/lib/pm/types';
+import { ColorDialog } from './color-picker';
 import { ConfirmDialog, PromptDialog } from './dialogs';
 import { useToast } from './providers';
 
@@ -37,10 +39,15 @@ export function BoardHeader({
   const { toast } = useToast();
   const { project } = data;
   const [renaming, setRenaming] = useState(false);
+  const [recolouring, setRecolouring] = useState(false);
   const [addingColumn, setAddingColumn] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const isAdmin = me.role === 'admin';
   const canArchive = isAdmin || project.createdBy === me.userId;
+
+  // Colours held by other active projects. An archived project gives its colour back to everyone.
+  const { data: allProjects = [] } = useQuery({ queryKey: ['projects'], queryFn: () => pm<PmProject[]>('/projects') });
+  const takenByOthers = colorsInUse(allProjects, project.id);
 
   async function run(fn: () => Promise<unknown>, after?: () => void) {
     try {
@@ -51,6 +58,25 @@ export function BoardHeader({
     } catch (e) {
       toast((e as Error).message);
     }
+  }
+
+  /**
+   * Archiving frees the project's colour. Restoring takes it back, unless another active project has
+   * claimed it in the meantime; then the project gets a free colour instead so no two active ones match.
+   */
+  function toggleArchive() {
+    const restoring = project.status !== 'active';
+    run(async () => {
+      if (restoring && takenByOthers.has(project.color.toLowerCase())) {
+        try {
+          await pm(`/projects/${project.key}`, { method: 'PATCH', body: { color: nextColor([...takenByOthers.keys()]) } });
+          toast('Another project is using its old colour now, so this one got a new colour.');
+        } catch {
+          /* only admins may recolour; the restore itself still goes ahead */
+        }
+      }
+      await pm(`/projects/${project.key}/${restoring ? 'restore' : 'archive'}`, { method: 'POST' });
+    });
   }
 
   return (
@@ -74,11 +100,16 @@ export function BoardHeader({
                   Rename project
                 </Menu.Item>
               )}
+              {isAdmin && (
+                <Menu.Item className={ITEM} onSelect={() => setRecolouring(true)}>
+                  Change colour
+                </Menu.Item>
+              )}
               <Menu.Item className={ITEM} onSelect={() => setAddingColumn(true)}>
                 Add column
               </Menu.Item>
               {canArchive && (
-                <Menu.Item className={ITEM} onSelect={() => run(() => pm(`/projects/${project.key}/${project.status === 'active' ? 'archive' : 'restore'}`, { method: 'POST' }))}>
+                <Menu.Item className={ITEM} onSelect={toggleArchive}>
                   {project.status === 'active' ? 'Archive project' : 'Restore project'}
                 </Menu.Item>
               )}
@@ -155,6 +186,14 @@ export function BoardHeader({
         )}
       </div>
 
+      <ColorDialog
+        open={recolouring}
+        onOpenChange={setRecolouring}
+        title="Project colour"
+        initial={project.color}
+        taken={takenByOthers}
+        onSubmit={(color) => run(() => pm(`/projects/${project.key}`, { method: 'PATCH', body: { color } }))}
+      />
       <PromptDialog
         open={renaming}
         onOpenChange={setRenaming}

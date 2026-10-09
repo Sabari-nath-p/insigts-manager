@@ -5,7 +5,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useToast } from '@/app/projects/_components/providers';
 import { pm } from './client';
 import { moveInBoard } from './board-logic';
-import type { BoardData, PmTask, Priority } from './types';
+import type { BoardData, PmLabel, PmTask, Priority } from './types';
 
 export interface TaskPatch {
   title?: string;
@@ -172,7 +172,26 @@ export function useBoardActions(projectKey: string, boardKey: readonly unknown[]
     [read, write, rollback, afterWrite, toast],
   );
 
+  /** Removes a label from the project and from every task that has it. Instant, rolled back if refused. */
+  const deleteLabel = useCallback(
+    async (label: PmLabel) => {
+      const snapshot = read();
+      write((d) => ({
+        ...d,
+        labels: d.labels.filter((l) => l.id !== label.id),
+        tasks: d.tasks.map((t) => ({ ...t, labelIds: t.labelIds.filter((id) => id !== label.id) })),
+      }));
+      try {
+        await pm(`/labels/${label.id}`, { method: 'DELETE' });
+        toast(`Deleted label ${label.name}`);
+      } catch (e) {
+        rollback(snapshot, (e as Error).message);
+      }
+    },
+    [read, write, rollback, toast],
+  );
+
   const refetch = useCallback(() => qc.invalidateQueries({ queryKey: boardKey }), [qc, boardKey]);
 
-  return { createTask, moveTask, patchTask, archiveTask, deleteTask, refetch };
+  return { createTask, moveTask, patchTask, archiveTask, deleteTask, deleteLabel, refetch };
 }

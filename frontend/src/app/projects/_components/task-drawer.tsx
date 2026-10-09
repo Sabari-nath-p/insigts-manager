@@ -10,10 +10,12 @@ import { cn } from '@/lib/cn';
 import { Avatar } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { pm, pollEvery } from '@/lib/pm/client';
+import { nextColor } from '@/lib/pm/colors';
 import { activityText, relativeTime } from '@/lib/pm/format';
 import type { useBoardActions } from '@/lib/pm/use-board-actions';
-import type { BoardData, PmMe, PmTask, Priority, TaskDetail, TaskUpdate } from '@/lib/pm/types';
+import type { BoardData, PmLabel, PmMe, PmTask, Priority, TaskDetail, TaskUpdate } from '@/lib/pm/types';
 import { AssigneePicker } from './assignee-picker';
+import { ColorPicker } from './color-picker';
 import { ConfirmDialog } from './dialogs';
 import { useToast } from './providers';
 
@@ -88,6 +90,9 @@ function DrawerBody({
   const [confirmDelete, setConfirmDelete] = useState(false);
   // Long histories stay folded until asked for; the drawer is re-created per task, so each task starts closed.
   const [activityOpen, setActivityOpen] = useState(false);
+  // Label management: show a delete button on each label, and confirm before removing one.
+  const [editingLabels, setEditingLabels] = useState(false);
+  const [labelToDelete, setLabelToDelete] = useState<PmLabel | null>(null);
   const [seeded, setSeeded] = useState(!!task);
 
   useEffect(() => {
@@ -222,22 +227,39 @@ function DrawerBody({
             )}
           </dd>
           <dt className="self-start pt-1 text-muted">Labels</dt>
-          <dd className="flex flex-wrap gap-1.5">
+          <dd className="flex flex-wrap items-center gap-1.5">
             {data.labels.map((l) => {
               const on = task.labelIds.includes(l.id);
               return (
-                <button
-                  key={l.id}
-                  aria-pressed={on}
-                  onClick={() => actions.patchTask(task, { labelIds: on ? task.labelIds.filter((x) => x !== l.id) : [...task.labelIds, l.id] })}
-                  className={cn('rounded-sm border px-1.5 py-0.5 text-xs', on ? 'border-primary bg-primary-tint text-primary-dark' : 'border-border text-muted hover:text-text')}
-                >
-                  <span className="mr-1 inline-block h-1.5 w-1.5 rounded-full align-middle" style={{ background: l.color }} aria-hidden />
-                  {l.name}
-                </button>
+                <span key={l.id} className="inline-flex items-center">
+                  <button
+                    type="button"
+                    aria-pressed={on}
+                    onClick={() => actions.patchTask(task, { labelIds: on ? task.labelIds.filter((x) => x !== l.id) : [...task.labelIds, l.id] })}
+                    className={cn('rounded-full border px-2 py-0.5 text-xs', on ? 'border-primary bg-primary-tint text-primary-dark' : 'border-border text-muted hover:text-text')}
+                  >
+                    <span className="mr-1 inline-block h-1.5 w-1.5 rounded-full align-middle" style={{ background: l.color }} aria-hidden />
+                    {l.name}
+                  </button>
+                  {editingLabels && (
+                    <button
+                      type="button"
+                      aria-label={`Delete label ${l.name}`}
+                      onClick={() => setLabelToDelete(l)}
+                      className="-ml-1 flex h-4 w-4 items-center justify-center rounded-full bg-danger text-white hover:opacity-80"
+                    >
+                      <X size={10} strokeWidth={3} />
+                    </button>
+                  )}
+                </span>
               );
             })}
-            <NewLabel projectKey={task.projectKey} onCreated={actions.refetch} />
+            <NewLabel projectKey={task.projectKey} usedColors={data.labels.map((l) => l.color)} onCreated={actions.refetch} />
+            {data.labels.length > 0 && (
+              <button type="button" className="text-xs text-primary hover:underline" onClick={() => setEditingLabels((e) => !e)}>
+                {editingLabels ? 'Done' : 'Edit labels'}
+              </button>
+            )}
           </dd>
         </dl>
 
@@ -320,6 +342,18 @@ function DrawerBody({
           onClose();
         }}
       />
+      <ConfirmDialog
+        open={labelToDelete !== null}
+        onOpenChange={(o) => !o && setLabelToDelete(null)}
+        title={`Delete the label "${labelToDelete?.name ?? ''}"?`}
+        body="It is removed from every task in this project. The tasks themselves are not touched. This cannot be undone."
+        confirmLabel="Delete label"
+        danger
+        onConfirm={() => {
+          if (labelToDelete) actions.deleteLabel(labelToDelete);
+          setLabelToDelete(null);
+        }}
+      />
     </>
   );
 }
@@ -355,43 +389,62 @@ function UpdateComposer({ onPost }: { onPost: (body: string) => void }) {
   );
 }
 
-function NewLabel({ projectKey, onCreated }: { projectKey: string; onCreated: () => void }) {
+/**
+ * Makes a new label for the project. A colour nobody in the project is using yet is picked
+ * automatically; the swatch lets the person choose any of the palette instead.
+ */
+function NewLabel({ projectKey, usedColors, onCreated }: { projectKey: string; usedColors: string[]; onCreated: () => void }) {
   const [open, setOpen] = useState(false);
   const [name, setName] = useState('');
+  const [color, setColor] = useState('');
   const { toast } = useToast();
+
+  function start() {
+    setColor(nextColor(usedColors));
+    setName('');
+    setOpen(true);
+  }
+
+  async function create() {
+    if (!name.trim()) return;
+    try {
+      await pm(`/projects/${projectKey}/labels`, { method: 'POST', body: { name: name.trim(), color } });
+      onCreated();
+    } catch (err) {
+      toast((err as Error).message);
+    }
+    setOpen(false);
+  }
+
   if (!open) {
     return (
-      <button className="rounded-sm border border-dashed border-border px-1.5 py-0.5 text-xs text-muted hover:text-text" onClick={() => setOpen(true)}>
+      <button type="button" className="rounded-full border border-dashed border-border px-2 py-0.5 text-xs text-muted hover:text-text" onClick={start}>
         New label
       </button>
     );
   }
   return (
-    <input
-      autoFocus
-      value={name}
-      maxLength={40}
-      aria-label="New label name"
-      placeholder="Label name"
-      onChange={(e) => setName(e.target.value)}
-      onBlur={() => {
-        setOpen(false);
-        setName('');
-      }}
-      onKeyDown={async (e) => {
-        if (e.key === 'Escape') setOpen(false);
-        if (e.key === 'Enter' && name.trim()) {
-          try {
-            await pm(`/projects/${projectKey}/labels`, { method: 'POST', body: { name: name.trim() } });
-            onCreated();
-          } catch (err) {
-            toast((err as Error).message);
-          }
-          setOpen(false);
-          setName('');
-        }
-      }}
-      className="h-6 w-28 rounded-sm border border-primary bg-surface px-1.5 text-xs text-text outline-none"
-    />
+    <span className="inline-flex items-center gap-1 rounded-full border border-primary bg-surface py-0.5 pl-1 pr-1.5">
+      <ColorPicker compact value={color} onChange={setColor} label="Label colour" />
+      <input
+        autoFocus
+        value={name}
+        maxLength={40}
+        aria-label="New label name"
+        placeholder="Label name"
+        onChange={(e) => setName(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === 'Escape') setOpen(false);
+          if (e.key === 'Enter') create();
+        }}
+        className="h-5 w-24 bg-transparent px-1 text-xs text-text outline-none placeholder:text-muted"
+      />
+      <button type="button" aria-label="Add label" disabled={!name.trim()} onClick={create} className="text-xs font-medium text-primary hover:underline disabled:opacity-40">
+        Add
+      </button>
+      <button type="button" aria-label="Cancel new label" onClick={() => setOpen(false)} className="text-muted hover:text-text">
+        <X size={12} />
+      </button>
+    </span>
   );
 }
