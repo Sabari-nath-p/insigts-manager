@@ -56,11 +56,14 @@ services:
       SUPER_ADMIN_PASSWORD: ${SUPER_ADMIN_PASSWORD:-ChangeMe123!}
       SUPER_ADMIN_NAME: ${SUPER_ADMIN_NAME:-Super Admin}
       SUPER_ADMIN_PHONE: ${SUPER_ADMIN_PHONE:-0000000000}
-      # Browser push notifications. Generate once with `npm run notifications:keys` in backend/,
-      # then put the keys in .env. Blank disables push; in-app notifications still work.
-      VAPID_PUBLIC_KEY: ${VAPID_PUBLIC_KEY:-}
-      VAPID_PRIVATE_KEY: ${VAPID_PRIVATE_KEY:-}
-      VAPID_SUBJECT: ${VAPID_SUBJECT:-mailto:admin@insights.local}
+      # Browser alerts through Firebase Cloud Messaging (free). See NOTIFICATIONS.md for where to find each value.
+      # Leave blank to disable; in-app notifications keep working.
+      FIREBASE_WEB_API_KEY: ${FIREBASE_WEB_API_KEY:-}
+      FIREBASE_PROJECT_ID: ${FIREBASE_PROJECT_ID:-}
+      FIREBASE_MESSAGING_SENDER_ID: ${FIREBASE_MESSAGING_SENDER_ID:-}
+      FIREBASE_APP_ID: ${FIREBASE_APP_ID:-}
+      FIREBASE_VAPID_KEY: ${FIREBASE_VAPID_KEY:-}
+      FIREBASE_SERVICE_ACCOUNT_JSON: ${FIREBASE_SERVICE_ACCOUNT_JSON:-}
     ports:
       - '3001:3001'
     depends_on:

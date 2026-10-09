@@ -1,123 +1,146 @@
 /**
- * Exercises PushService against a local HTTPS server standing in for the browser vendor's push
- * service: real VAPID signing, real payload encryption, success and "device is gone" handling.
- * Needs a migrated MySQL database and the openssl binary:
+ * PushService with Firebase replaced by a stand-in, so no Google account or network is needed.
+ * The cases that store tokens need a migrated MySQL database:
  *   PM_TEST_DATABASE_URL=mysql://... npx jest push.integration
- * Skipped when the database variable is absent. Only touches its own push_subscriptions rows.
+ * Those are skipped when the variable is absent. They only touch their own fcm_tokens rows.
  */
-import { execFileSync } from 'child_process';
-import { createECDH, randomBytes } from 'crypto';
-import { mkdtempSync, readFileSync, rmSync } from 'fs';
-import * as https from 'https';
-import { AddressInfo } from 'net';
-import { tmpdir } from 'os';
-import { join } from 'path';
 import { PrismaClient } from '@prisma/client';
-import * as webpush from 'web-push';
-import { PushService, endpointHash } from './push.service';
+import { PushService, tokenHash } from './push.service';
+
+const sendEachForMulticast = jest.fn();
+jest.mock('firebase-admin/app', () => ({
+  cert: (c: unknown) => c,
+  getApps: () => [],
+  initializeApp: () => ({}),
+}));
+jest.mock('firebase-admin/messaging', () => ({
+  getMessaging: () => ({ sendEachForMulticast }),
+}));
+
+const SETTINGS: Record<string, string> = {
+  FIREBASE_WEB_API_KEY: 'key',
+  FIREBASE_PROJECT_ID: 'proj',
+  FIREBASE_MESSAGING_SENDER_ID: '123',
+  FIREBASE_APP_ID: '1:123:web:abc',
+  FIREBASE_VAPID_KEY: 'vapid',
+  FIREBASE_SERVICE_ACCOUNT_JSON: JSON.stringify({ project_id: 'proj', client_email: 'a@b.c', private_key: 'x' }),
+};
+
+const build = (prisma: unknown, settings: Record<string, string> = SETTINGS) => {
+  const service = new PushService(prisma as never, { get: (k: string) => settings[k] } as never);
+  service.onModuleInit();
+  return service;
+};
+
+describe('PushService without Firebase settings', () => {
+  it('stays disabled, sends nothing and does not throw', async () => {
+    const service = build({}, {});
+    expect(service.webConfig).toBeNull();
+    expect(await service.send(['u'], { title: 'x' })).toBe(0);
+  });
+
+  it('stays disabled when only part of the settings are present', () => {
+    const { FIREBASE_VAPID_KEY, ...partial } = SETTINGS;
+    void FIREBASE_VAPID_KEY;
+    expect(build({}, partial).webConfig).toBeNull();
+  });
+
+  it('exposes only the public web settings when configured', () => {
+    const service = build({});
+    expect(service.webConfig).toEqual({ apiKey: 'key', projectId: 'proj', messagingSenderId: '123', appId: '1:123:web:abc', vapidKey: 'vapid' });
+    expect(JSON.stringify(service.webConfig)).not.toContain('private_key');
+  });
+});
 
 const url = process.env.PM_TEST_DATABASE_URL;
 const d = url ? describe : describe.skip;
 
-const b64url = (b: Buffer) => b.toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
-
-d('PushService against a stand-in push service', () => {
+d('PushService token handling (MySQL)', () => {
   const prisma = new PrismaClient({ datasources: { db: { url: url as string } } });
-  let server: https.Server;
-  let base = '';
-  let dir = '';
-  const seen: Array<{ path: string; headers: Record<string, string | string[] | undefined>; bytes: number }> = [];
-  const userA = `push-test-a-${Date.now()}`;
-  const userB = `push-test-b-${Date.now()}`;
+  const stamp = Date.now();
+  const userA = `fcm-test-a-${stamp}`;
+  const userB = `fcm-test-b-${stamp}`;
+  const tok = (n: string) => `token-${stamp}-${n}`;
 
-  const device = (path: string) => {
-    const ecdh = createECDH('prime256v1');
-    ecdh.generateKeys();
-    return { endpoint: `${base}${path}`, keys: { p256dh: b64url(ecdh.getPublicKey()), auth: b64url(randomBytes(16)) } };
-  };
-
-  const makeService = (withKeys: boolean) => {
-    const vapid = webpush.generateVAPIDKeys();
-    const env: Record<string, string> = withKeys ? { VAPID_PUBLIC_KEY: vapid.publicKey, VAPID_PRIVATE_KEY: vapid.privateKey } : {};
-    const service = new PushService(prisma as never, { get: (k: string) => env[k] } as never);
-    service.onModuleInit();
-    // The stand-in uses a throwaway certificate, so skip verification for these requests only.
-    service.sendOptions = { TTL: 60, agent: new https.Agent({ rejectUnauthorized: false }) };
-    return service;
-  };
-
-  beforeAll(async () => {
-    dir = mkdtempSync(join(tmpdir(), 'push-'));
-    execFileSync('openssl', ['req', '-x509', '-newkey', 'rsa:2048', '-nodes', '-keyout', join(dir, 'k.pem'), '-out', join(dir, 'c.pem'), '-days', '1', '-subj', '/CN=localhost'], { stdio: 'ignore' });
-    server = https.createServer({ key: readFileSync(join(dir, 'k.pem')), cert: readFileSync(join(dir, 'c.pem')) }, (req, res) => {
-      const chunks: Buffer[] = [];
-      req.on('data', (c) => chunks.push(c));
-      req.on('end', () => {
-        seen.push({ path: req.url ?? '', headers: req.headers, bytes: Buffer.concat(chunks).length });
-        res.statusCode = req.url?.startsWith('/gone') ? 410 : 201;
-        res.end();
-      });
-    });
-    await new Promise<void>((r) => server.listen(0, '127.0.0.1', r));
-    base = `https://localhost:${(server.address() as AddressInfo).port}`;
-  });
-
+  beforeEach(() => sendEachForMulticast.mockReset());
   afterAll(async () => {
-    await prisma.pushSubscription.deleteMany({ where: { userId: { in: [userA, userB] } } });
+    await prisma.fcmToken.deleteMany({ where: { userId: { in: [userA, userB] } } });
     await prisma.$disconnect();
-    await new Promise((r) => server.close(r));
-    rmSync(dir, { recursive: true, force: true });
   });
 
-  it('sends a signed, encrypted push to every device of the user', async () => {
-    const service = makeService(true);
-    await service.subscribe(userA, device('/ok-1'));
-    await service.subscribe(userA, device('/ok-2'));
-    seen.length = 0;
-    const delivered = await service.send([userA], { title: 'Ann started work', url: '/status' });
+  it('sends a data-only message to every device of the user', async () => {
+    const service = build(prisma);
+    await service.subscribe(userA, tok('a1'));
+    await service.subscribe(userA, tok('a2'));
+    sendEachForMulticast.mockResolvedValue({ successCount: 2, responses: [{ success: true }, { success: true }] });
+
+    const delivered = await service.send([userA], { title: 'Ann started work', body: 'x', url: '/status', tag: 't' });
+
     expect(delivered).toBe(2);
-    expect(seen).toHaveLength(2);
-    for (const r of seen) {
-      expect(String(r.headers.authorization)).toMatch(/^vapid /);
-      expect(r.headers['content-encoding']).toBe('aes128gcm');
-      expect(r.bytes).toBeGreaterThan(50);
-    }
+    const call = sendEachForMulticast.mock.calls[0][0];
+    expect([...call.tokens].sort()).toEqual([tok('a1'), tok('a2')].sort());
+    expect(call.data).toEqual({ title: 'Ann started work', body: 'x', url: '/status', tag: 't' });
+    expect(call.notification).toBeUndefined(); // data-only: our service worker shows it
   });
 
-  it('removes a device the push service reports as gone', async () => {
-    const service = makeService(true);
-    const gone = device('/gone-1');
-    await service.subscribe(userB, gone);
-    expect(await service.send([userB], { title: 'x' })).toBe(0);
-    expect(await prisma.pushSubscription.count({ where: { endpointHash: endpointHash(gone.endpoint) } })).toBe(0);
+  it('forgets tokens Firebase says are gone, but keeps ones that merely failed', async () => {
+    const service = build(prisma);
+    await service.subscribe(userB, tok('gone'));
+    await service.subscribe(userB, tok('flaky'));
+    await service.subscribe(userB, tok('fine'));
+    const order = (await prisma.fcmToken.findMany({ where: { userId: userB } })).map((r) => r.token);
+    sendEachForMulticast.mockResolvedValue({
+      successCount: 1,
+      responses: order.map((t) =>
+        t === tok('gone') ? { success: false, error: { code: 'messaging/registration-token-not-registered' } }
+        : t === tok('flaky') ? { success: false, error: { code: 'messaging/internal-error' } }
+        : { success: true },
+      ),
+    });
+
+    expect(await service.send([userB], { title: 'x' })).toBe(1);
+    const left = (await prisma.fcmToken.findMany({ where: { userId: userB } })).map((r) => r.token).sort();
+    expect(left).toEqual([tok('fine'), tok('flaky')].sort());
   });
 
-  it('re-subscribing the same device moves it to the new user without duplicating it', async () => {
-    const service = makeService(true);
-    const shared = device('/ok-shared');
-    await service.subscribe(userA, shared);
-    await service.subscribe(userB, shared);
-    const rows = await prisma.pushSubscription.findMany({ where: { endpointHash: endpointHash(shared.endpoint) } });
+  it('moves a shared browser to the new user without duplicating it', async () => {
+    const service = build(prisma);
+    await service.subscribe(userA, tok('shared'));
+    await service.subscribe(userB, tok('shared'));
+    const rows = await prisma.fcmToken.findMany({ where: { tokenHash: tokenHash(tok('shared')) } });
     expect(rows).toHaveLength(1);
     expect(rows[0].userId).toBe(userB);
   });
 
-  it('unsubscribe only removes the caller\'s own device', async () => {
-    const service = makeService(true);
-    const mine = device('/ok-mine');
-    await service.subscribe(userA, mine);
-    await service.unsubscribe(userB, mine.endpoint);
-    expect(await prisma.pushSubscription.count({ where: { endpointHash: endpointHash(mine.endpoint) } })).toBe(1);
-    await service.unsubscribe(userA, mine.endpoint);
-    expect(await prisma.pushSubscription.count({ where: { endpointHash: endpointHash(mine.endpoint) } })).toBe(0);
+  it('only lets a user remove their own device', async () => {
+    const service = build(prisma);
+    await service.subscribe(userA, tok('mine'));
+    await service.unsubscribe(userB, tok('mine'));
+    expect(await prisma.fcmToken.count({ where: { tokenHash: tokenHash(tok('mine')) } })).toBe(1);
+    await service.unsubscribe(userA, tok('mine'));
+    expect(await prisma.fcmToken.count({ where: { tokenHash: tokenHash(tok('mine')) } })).toBe(0);
   });
 
-  it('does nothing, without throwing, when no VAPID keys are configured', async () => {
-    const service = makeService(false);
-    await service.subscribe(userA, device('/ok-disabled'));
-    seen.length = 0;
-    expect(await service.send([userA], { title: 'x' })).toBe(0);
-    expect(seen).toHaveLength(0);
-    expect(service.publicKey).toBeNull();
+  it('splits more than 500 devices into several Firebase requests', async () => {
+    const service = build(prisma);
+    await prisma.fcmToken.createMany({
+      data: Array.from({ length: 501 }, (_, i) => ({ userId: userA, tokenHash: tokenHash(tok(`bulk-${i}`)), token: tok(`bulk-${i}`) })),
+    });
+    sendEachForMulticast.mockImplementation(async ({ tokens }: { tokens: string[] }) => ({
+      successCount: tokens.length,
+      responses: tokens.map(() => ({ success: true })),
+    }));
+    const delivered = await service.send([userA], { title: 'x' });
+    const sizes = sendEachForMulticast.mock.calls.map((c) => c[0].tokens.length).sort((a, b) => b - a);
+    expect(sizes.every((n) => n <= 500)).toBe(true);
+    expect(sizes.length).toBeGreaterThanOrEqual(2);
+    expect(delivered).toBeGreaterThanOrEqual(501);
+  });
+
+  it('survives Firebase being unreachable', async () => {
+    const service = build(prisma);
+    await service.subscribe(userB, tok('offline'));
+    sendEachForMulticast.mockRejectedValue(new Error('network down'));
+    await expect(service.send([userB], { title: 'x' })).resolves.toBe(0);
   });
 });

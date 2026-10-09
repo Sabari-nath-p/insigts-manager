@@ -1175,7 +1175,7 @@ model AppNotification {
   @@map("app_notifications")
 }
 
-/// One row per browser/device that opted in to push alerts.
+/// LEGACY: raw Web Push subscriptions from before the Firebase switch. Unused now; kept so no data is dropped.
 model PushSubscription {
   id           String   @id @default(uuid())
   userId       String
@@ -1188,4 +1188,17 @@ model PushSubscription {
 
   @@index([userId])
   @@map("push_subscriptions")
+}
+
+/// One row per browser/device that opted in to push alerts through Firebase Cloud Messaging.
+model FcmToken {
+  id        String   @id @default(uuid())
+  userId    String
+  tokenHash String   @unique @db.Char(64)
+  token     String   @db.Text
+  userAgent String?  @db.VarChar(300)
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@map("fcm_tokens")
 }
