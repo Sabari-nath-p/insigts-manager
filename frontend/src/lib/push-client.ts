@@ -5,15 +5,9 @@
  * The Firebase SDK is loaded only when someone turns alerts on, so it never weighs down normal pages.
  */
 
-export type PushState = 'unsupported' | 'unconfigured' | 'blocked' | 'off' | 'on';
+import { type FirebaseWebConfig, localFirebaseConfig } from './firebase-config';
 
-interface FirebaseWebConfig {
-  apiKey: string;
-  projectId: string;
-  messagingSenderId: string;
-  appId: string;
-  vapidKey: string;
-}
+export type PushState = 'unsupported' | 'unconfigured' | 'blocked' | 'off' | 'on';
 
 /** Remembers which FCM token this browser registered, so we can show the right state and remove it later. */
 const TOKEN_KEY = 'insights_fcm_token';
@@ -32,7 +26,18 @@ async function api<T>(path: string, method = 'GET', body?: unknown): Promise<T> 
   return (await res.json()) as T;
 }
 
-const readConfig = async () => (await api<{ firebase: FirebaseWebConfig | null }>('/config')).firebase;
+/**
+ * The settings to use, or null when alerts cannot work yet. The server must be able to send (its secret
+ * service account is loaded); the browser settings come from this website, or from the server as a fallback.
+ */
+async function readConfig(): Promise<FirebaseWebConfig | null> {
+  const server = await api<{ firebase: FirebaseWebConfig | null; sending?: boolean }>('/config');
+  // A server that reports "sending" says so outright; an older one only returns its web settings,
+  // which it fills in only when it is fully set up to send.
+  const serverCanSend = server.sending ?? server.firebase !== null;
+  if (!serverCanSend) return null;
+  return localFirebaseConfig() ?? server.firebase;
+}
 
 function storedToken(): string | null {
   try {
