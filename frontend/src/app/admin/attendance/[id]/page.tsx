@@ -125,8 +125,9 @@ export default async function EmployeeAttendanceDetailPage({
         <Metric label="Attendance %" value={`${detail.stats.attendancePercentage}%`} />
       </MetricStrip>
 
-      <SectionTitle>Calendar — {detail.month}</SectionTitle>
-      <AttendanceMonthCalendar month={detail.month} history={detail.history} />
+      <div className="mt-8">
+        <AttendanceMonthCalendar month={detail.month} history={detail.history} />
+      </div>
 
       <SectionTitle>Attendance history — {detail.month}</SectionTitle>
       <TableWrap>
