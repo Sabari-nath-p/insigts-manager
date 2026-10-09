@@ -85,19 +85,35 @@ export default async function AttendancePage({
       <SectionTitle>Today&rsquo;s attendance</SectionTitle>
       <AttendanceTimer today={today} />
 
-      <SectionTitle>Calendar — {currentMonth}</SectionTitle>
-      <AttendanceMonthCalendar month={currentMonth} history={history} />
+      <div className="mt-10">
+        <AttendanceMonthCalendar month={currentMonth} history={history} />
+      </div>
 
-      <SectionTitle
-        action={
+      {/* History uses the same card, eyebrow and thin display title as the calendar above it. */}
+      <div
+        className="mt-6 rounded-xl border border-border bg-surface p-4 sm:p-8"
+        style={{
+          fontFeatureSettings: '"ss03"',
+          boxShadow:
+            '0 8px 8px rgba(0,0,0,0.04), 0 4px 4px rgba(0,0,0,0.04), 0 2px 2px rgba(0,0,0,0.04), 0 0 0 1px rgba(0,0,0,0.04)',
+        }}
+      >
+        <div className="mb-6 flex flex-col gap-5 sm:mb-8 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <p className="text-[12px] uppercase tracking-[0.72px] text-muted">Attendance</p>
+            <h2 className="mt-1 text-[44px] leading-none text-text sm:text-[56px]" style={{ fontWeight: 330 }}>
+              History
+            </h2>
+          </div>
           <form className="flex flex-wrap items-center gap-2">
             <input
               type="month"
               name="month"
               defaultValue={month}
-              className="rounded-lg border border-border bg-surface px-2.5 py-1.5 text-sm text-text outline-none"
+              aria-label="Month"
+              className="rounded-full border border-border bg-surface px-4 py-2 text-sm text-text outline-none focus:border-primary"
             />
-            <Select name="status" defaultValue={status ?? ''} className="w-auto py-1.5">
+            <Select name="status" defaultValue={status ?? ''} aria-label="Status" className="w-auto rounded-full px-4 py-2">
               <option value="">All statuses</option>
               {STATUS_OPTIONS.map((s) => (
                 <option key={s} value={s}>
@@ -114,13 +130,10 @@ export default async function AttendancePage({
               </LinkButton>
             )}
           </form>
-        }
-      >
-        History
-      </SectionTitle>
+        </div>
       <TableWrap>
         <Table>
-          <Thead sticky>
+          <Thead>
             <Th>Date</Th>
             <Th>Scheduled in</Th>
             <Th>Check-in</Th>
@@ -155,6 +168,7 @@ export default async function AttendancePage({
         </Table>
         {history.length === 0 && <EmptyState>No attendance records yet.</EmptyState>}
       </TableWrap>
+      </div>
     </AppShell>
   );
 }
