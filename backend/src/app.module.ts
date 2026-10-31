@@ -18,6 +18,7 @@ import { PayrollModule } from './payroll/payroll.module';
 import { ProjectsModule } from './projects/projects.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { LoginReminderModule } from './notifications/login-reminder.module';
+import { ContentCalendarModule } from './content-calendar/content-calendar.module';
 
 @Module({
   imports: [
@@ -40,6 +41,7 @@ import { LoginReminderModule } from './notifications/login-reminder.module';
     ProjectsModule,
     NotificationsModule,
     LoginReminderModule,
+    ContentCalendarModule,
   ],
   controllers: [AppController],
   providers: [AppService],

@@ -15,6 +15,7 @@ import {
   Wallet,
   IndianRupee,
   FolderKanban,
+  CalendarRange,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -47,6 +48,7 @@ export const NAV_SECTIONS: NavSection[] = [
       { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
       { href: '/clients', label: 'Clients', icon: Building2 },
       { href: '/projects', label: 'Projects', icon: FolderKanban },
+      { href: '/content-calendar', label: 'Content Calendar', icon: CalendarRange },
       { href: '/attendance', label: 'My Attendance', icon: Clock },
       { href: '/leaves', label: 'My Leaves', icon: CalendarDays },
       { href: '/worklogs', label: 'Daily Work Log', icon: NotebookPen },
