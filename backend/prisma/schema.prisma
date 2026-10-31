@@ -1214,3 +1214,32 @@ model PmTaskAssignee {
   @@index([userId])
   @@map("pm_task_assignees")
 }
+
+// ==========================================================================
+// Content calendar (per-client monthly posting plan)
+// ==========================================================================
+
+/// One client for one month. `days` maps day-of-month ("1".."31") to { posts: [{id,type,note}], marker: {label}|null }.
+model ContentCalendar {
+  id        String   @id @default(uuid())
+  client    String   @db.VarChar(100)
+  /// Lower-cased client name, so "Arena" and "arena" cannot both have the same month.
+  clientKey String   @db.VarChar(100)
+  year      Int
+  month     Int
+  days      Json
+  createdBy String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
+
+  @@unique([clientKey, year, month])
+  @@map("content_calendars")
+}
+
+/// People who may edit content calendars (e.g. the social media team). Super admins always can and are not listed here.
+model ContentCalendarEditor {
+  userId    String   @id
+  createdAt DateTime @default(now())
+
+  @@map("content_calendar_editors")
+}
