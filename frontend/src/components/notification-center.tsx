@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import * as Popover from '@radix-ui/react-popover';
 import { Bell } from 'lucide-react';
+import { alertBody, alertTitle } from '@/lib/alerts/wording';
 import { PushAlerts } from './push-alerts';
 
 interface AppNotification {
@@ -92,8 +93,8 @@ export function NotificationCenter() {
               <button key={n.id} onClick={() => open(n)} className="flex w-full gap-2 border-b border-border px-3 py-2 text-left last:border-0 hover:bg-black/[0.02]">
                 <span className={`mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full ${n.readAt ? 'bg-transparent' : 'bg-primary'}`} aria-hidden />
                 <span className="min-w-0 text-sm text-text">
-                  {n.title}
-                  {n.body && <span className="block text-xs text-muted">{n.body}</span>}
+                  {alertTitle(n.type, n.title)}
+                  {alertBody(n.type, n.body) && <span className="block text-xs text-muted">{alertBody(n.type, n.body)}</span>}
                   <span className="block text-xs text-muted">{ago(n.createdAt)}</span>
                 </span>
               </button>
