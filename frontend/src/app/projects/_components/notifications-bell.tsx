@@ -5,17 +5,11 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import * as Popover from '@radix-ui/react-popover';
 import { Bell } from 'lucide-react';
 import { pm, pollEvery } from '@/lib/pm/client';
-import { relativeTime } from '@/lib/pm/format';
+import { PM_NOTIFICATION_TEXT, relativeTime } from '@/lib/pm/format';
 import type { PmNotification } from '@/lib/pm/types';
 import { PushAlerts } from '@/components/push-alerts';
 
-const TEXT: Record<string, string> = {
-  'task.assigned': 'assigned you',
-  'update.posted': 'posted an update on',
-  'task.completed': 'completed',
-  'task.due_soon': 'Due tomorrow:',
-  'task.due_today': 'Due today:',
-};
+const TEXT = PM_NOTIFICATION_TEXT;
 
 export function NotificationsBell() {
   const qc = useQueryClient();

@@ -69,3 +69,12 @@ export function activityText(type: string, meta: Record<string, unknown> | null)
       return type;
   }
 }
+
+/** Wording for each kind of Projects notification, shared by the bell and the pop-up alerts. */
+export const PM_NOTIFICATION_TEXT: Record<string, string> = {
+  'task.assigned': 'assigned you',
+  'update.posted': 'posted an update on',
+  'task.completed': 'completed',
+  'task.due_soon': 'Due tomorrow:',
+  'task.due_today': 'Due today:',
+};

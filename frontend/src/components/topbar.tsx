@@ -9,6 +9,7 @@ import { Menu as DMenu, MenuTrigger, MenuContent, MenuItem, MenuLabel, MenuSepar
 import { SignOutButton } from '@/components/sign-out-button';
 import { CommandSearch } from '@/components/command-search';
 import { NotificationCenter } from '@/components/notification-center';
+import { InstallApp } from '@/components/install-app';
 import type { SessionUser } from '@/lib/session';
 
 function readCurrentTheme(): 'light' | 'dark' {
@@ -64,6 +65,7 @@ export function Topbar({
         <div className="hidden sm:block">
           <CommandSearch />
         </div>
+        <InstallApp />
         <NotificationCenter />
 
         <DMenu>
