@@ -1,8 +1,10 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { Download } from 'lucide-react';
 import { cn } from '@/lib/cn';
 import { Button } from '@/components/ui/button';
+import { downloadCalendarCsv } from '@/lib/content-calendar/csv';
 import { DOWS, MONTHS, countPosts, daysIn } from '@/lib/content-calendar/logic';
 import type { CcCalendar } from '@/lib/content-calendar/types';
 
@@ -44,31 +46,36 @@ export function MonthBoard({
 
   return (
     <div
-      className="rounded-xl border border-border bg-surface p-4 sm:p-8"
+      className="rounded-xl border border-border bg-surface p-4 sm:p-6"
       style={{
         fontFeatureSettings: '"ss03"',
         boxShadow: '0 8px 8px rgba(0,0,0,0.04), 0 4px 4px rgba(0,0,0,0.04), 0 2px 2px rgba(0,0,0,0.04), 0 0 0 1px rgba(0,0,0,0.04)',
       }}
     >
-      <div className="mb-6 flex flex-col gap-5 sm:mb-8 sm:flex-row sm:items-end sm:justify-between">
+      <div className="mb-4 flex flex-col gap-4 sm:mb-5 sm:flex-row sm:items-end sm:justify-between">
         <div className="min-w-0">
           <p className="break-words text-[12px] uppercase tracking-[0.72px] text-muted">
             {cal.client} &middot; {planned} {planned === 1 ? 'post' : 'posts'} planned
           </p>
-          <h2 className="mt-1 text-[44px] leading-none text-text sm:text-[56px]" style={{ fontWeight: 330, fontFamily: DISPLAY_FONT }}>
+          <h2 className="mt-1 text-[40px] leading-none text-text sm:text-[48px]" style={{ fontWeight: 330, fontFamily: DISPLAY_FONT }}>
             {MONTHS[cal.month]} <span className="text-muted">{cal.year}</span>
           </h2>
         </div>
-        {canEdit && (
-          <div className="flex gap-2">
-            <Button variant="secondary" size="sm" onClick={onEdit}>
-              Edit
-            </Button>
-            <Button variant="danger" size="sm" onClick={onDelete}>
-              Delete
-            </Button>
-          </div>
-        )}
+        <div className="flex flex-wrap gap-2">
+          <Button variant="secondary" size="sm" onClick={() => downloadCalendarCsv(cal)}>
+            <Download size={14} /> Download CSV
+          </Button>
+          {canEdit && (
+            <>
+              <Button variant="secondary" size="sm" onClick={onEdit}>
+                Edit
+              </Button>
+              <Button variant="danger" size="sm" onClick={onDelete}>
+                Delete
+              </Button>
+            </>
+          )}
+        </div>
       </div>
 
       <div className="grid grid-cols-7 gap-1.5 sm:gap-2" role="grid" aria-label={`${MONTHS[cal.month]} ${cal.year}`}>
@@ -126,7 +133,7 @@ export function MonthBoard({
           );
 
           const base = cn(
-            'flex aspect-square min-h-[52px] min-w-0 flex-col justify-between gap-1 rounded-lg border p-1.5 text-left transition-all duration-200 sm:aspect-auto sm:min-h-[104px] sm:p-2.5',
+            'flex aspect-square min-h-[52px] min-w-0 flex-col justify-between gap-1 rounded-lg border p-1.5 text-left transition-all duration-200 sm:aspect-auto sm:min-h-[clamp(92px,11vh,128px)] sm:p-2.5',
             filled ? 'border-border bg-surface' : 'border-dashed border-border bg-transparent',
           );
 
@@ -140,7 +147,7 @@ export function MonthBoard({
         })}
       </div>
 
-      <div className="mt-6">
+      <div className="mt-4">
         {specials.length > 0 ? (
           <>
             <p className="text-[12px] uppercase tracking-[0.72px] text-muted">Special days</p>

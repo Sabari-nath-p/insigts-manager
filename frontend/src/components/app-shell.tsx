@@ -6,15 +6,19 @@ import { X } from 'lucide-react';
 import { Sidebar, SidebarNav } from './sidebar';
 import { Topbar } from './topbar';
 import { BrandMark } from './brand-mark';
+import { cn } from '@/lib/cn';
 import type { SessionUser } from '@/lib/session';
 
 export function AppShell({
   user,
   title,
+  wide = false,
   children,
 }: {
   user: SessionUser;
   title?: string;
+  /** Uses the full width of the screen instead of the usual reading width. For pages built around a big grid. */
+  wide?: boolean;
   children: React.ReactNode;
 }) {
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -45,7 +49,7 @@ export function AppShell({
       <div className="flex min-w-0 flex-1 flex-col">
         <Topbar user={user} title={title} onOpenMobileNav={() => setMobileOpen(true)} />
         <main className="flex-1 overflow-y-auto">
-          <div className="mx-auto w-full max-w-4xl px-5 py-8 sm:px-8">{children}</div>
+          <div className={cn('mx-auto w-full px-5 py-8 sm:px-8', wide ? 'max-w-[1800px]' : 'max-w-4xl')}>{children}</div>
         </main>
       </div>
     </div>

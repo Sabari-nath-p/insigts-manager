@@ -21,7 +21,7 @@ export default async function ContentCalendarPage() {
   }
 
   return (
-    <AppShell user={user}>
+    <AppShell user={user} wide>
       <PageHeader
         title="Content Calendar"
         icon={CalendarRange}

@@ -69,7 +69,7 @@ export function ContentCalendarView({ initialCalendars, me }: { initialCalendars
 
   return (
     <>
-      <div className="grid gap-6 lg:grid-cols-[240px_minmax(0,1fr)] lg:items-start">
+      <div className="grid gap-6 lg:grid-cols-[210px_minmax(0,1fr)] xl:gap-8 lg:items-start">
         <aside className="flex min-w-0 flex-col gap-5 lg:sticky lg:top-4">
           <div className="flex flex-wrap gap-2">
             {me.canEdit && (
