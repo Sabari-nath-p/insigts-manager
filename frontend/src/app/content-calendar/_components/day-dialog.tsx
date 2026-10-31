@@ -126,7 +126,7 @@ export function DayDialog({
           <p className="text-sm text-muted">{canEdit ? 'Nothing planned yet. Add the first post below.' : 'Nothing planned for this day.'}</p>
         )}
         {data.marker && !canEdit && (
-          <p className="rounded-lg bg-primary-tint px-3 py-2 text-sm text-text">
+          <p className="rounded-lg bg-danger-bg px-3 py-2 text-sm text-danger">
             Special day: <b>{data.marker.label}</b>
           </p>
         )}

@@ -109,7 +109,7 @@ export function MonthBoard({
                 {marker && (
                   <>
                     <span className="mt-1 h-2 w-2 rounded-full bg-danger sm:hidden" aria-hidden />
-                    <span title={marker.label} className="hidden min-w-0 max-w-full truncate rounded-full bg-primary-tint px-2 py-0.5 text-[10.5px] font-medium text-text sm:inline-block">
+                    <span title={marker.label} className="hidden min-w-0 max-w-full truncate rounded-full bg-danger px-2 py-0.5 text-[10.5px] font-semibold text-white sm:inline-block dark:text-black">
                       {marker.label}
                     </span>
                   </>
@@ -119,9 +119,9 @@ export function MonthBoard({
               {posts.length > 0 && (
                 <>
                   <span className="text-[11px] font-semibold tabular-nums text-muted sm:hidden">{posts.length}</span>
-                  <span className="hidden min-w-0 flex-col gap-1 sm:flex">
+                  <span className="hidden min-w-0 flex-col gap-0.5 sm:flex">
                     {posts.slice(0, 3).map((p) => (
-                      <span key={p.id} title={p.note || undefined} className="truncate rounded-full bg-bg px-2 py-0.5 text-center text-[10.5px] font-medium uppercase tracking-[0.3px] text-text">
+                      <span key={p.id} title={p.note || undefined} className="truncate rounded-full bg-bg px-2 py-px text-center text-[10.5px] font-medium uppercase tracking-[0.3px] text-text">
                         {p.type}
                       </span>
                     ))}
@@ -133,7 +133,7 @@ export function MonthBoard({
           );
 
           const base = cn(
-            'flex aspect-square min-h-[52px] min-w-0 flex-col justify-between gap-1 rounded-lg border p-1.5 text-left transition-all duration-200 sm:aspect-auto sm:min-h-[clamp(92px,11vh,128px)] sm:p-2.5',
+            'flex aspect-square min-h-[52px] min-w-0 flex-col justify-between gap-1 rounded-lg border p-1.5 text-left transition-all duration-200 sm:aspect-auto sm:min-h-[clamp(72px,9vh,120px)] sm:p-2.5',
             filled ? 'border-border bg-surface' : 'border-dashed border-border bg-transparent',
           );
 
@@ -156,7 +156,7 @@ export function MonthBoard({
                 <li key={s.day} className="flex items-center gap-2.5">
                   <span className="h-2.5 w-2.5 rounded-full bg-danger" aria-hidden />
                   <b className="tabular-nums">{s.day}</b>
-                  <span>{s.label}</span>
+                  <span className="font-medium text-danger">{s.label}</span>
                 </li>
               ))}
             </ul>

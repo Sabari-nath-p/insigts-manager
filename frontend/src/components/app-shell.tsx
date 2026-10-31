@@ -49,7 +49,7 @@ export function AppShell({
       <div className="flex min-w-0 flex-1 flex-col">
         <Topbar user={user} title={title} onOpenMobileNav={() => setMobileOpen(true)} />
         <main className="flex-1 overflow-y-auto">
-          <div className={cn('mx-auto w-full px-5 py-8 sm:px-8', wide ? 'max-w-[1800px]' : 'max-w-4xl')}>{children}</div>
+          <div className={cn('mx-auto w-full px-5 sm:px-8', wide ? 'max-w-[1800px] py-5' : 'max-w-4xl py-8')}>{children}</div>
         </main>
       </div>
     </div>

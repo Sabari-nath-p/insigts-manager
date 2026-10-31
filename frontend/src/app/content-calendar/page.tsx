@@ -26,7 +26,6 @@ export default async function ContentCalendarPage() {
         title="Content Calendar"
         icon={CalendarRange}
         tone="purple"
-        subtitle="Plan each client's posts month by month. Everyone can view; people with edit access can change it."
       />
       {me ? (
         <ContentCalendarView initialCalendars={calendars} me={me} />
