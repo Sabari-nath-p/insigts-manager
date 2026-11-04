@@ -44,9 +44,10 @@ export function Modal({
 }
 
 /** Small round-cornered chip button used for suggestions. */
-export function Chip({ children, onClick }: { children: React.ReactNode; onClick: () => void }) {
+export function Chip({ children, onClick, dot }: { children: React.ReactNode; onClick: () => void; dot?: React.ReactNode }) {
   return (
-    <button type="button" onClick={onClick} className="rounded-full border border-border bg-surface px-3 py-1 text-[12px] font-medium text-text transition-colors hover:border-primary">
+    <button type="button" onClick={onClick} className="inline-flex items-center gap-1.5 rounded-full border border-border bg-surface px-3 py-1 text-[12px] font-medium text-text transition-colors hover:border-primary">
+      {dot}
       {children}
     </button>
   );
