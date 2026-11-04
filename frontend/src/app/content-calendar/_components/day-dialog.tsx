@@ -6,6 +6,7 @@ import { ErrorText, Field, Input, Textarea } from '@/components/ui/field';
 import { DOW_LONG, EMPTY_DAY, MONTHS, QUICK_TYPES, newId } from '@/lib/content-calendar/logic';
 import type { CcCalendar, CcDay } from '@/lib/content-calendar/types';
 import { Chip, Modal } from './modal';
+import { TypeDot } from './type-dot';
 
 /**
  * One day of a calendar. Every change saves the whole day straight away (PUT), so a person editing
@@ -96,7 +97,10 @@ export function DayDialog({
             {data.posts.map((p) => (
               <li key={p.id} className="flex items-start gap-3 rounded-lg border border-border px-3 py-2.5">
                 <div className="min-w-0 flex-1">
-                  <b className="break-words text-[13px] uppercase tracking-[0.3px] text-text">{p.type}</b>
+                  <span className="flex items-center gap-2">
+                    <TypeDot type={p.type} />
+                    <b className="break-words text-[13px] uppercase tracking-[0.3px] text-text">{p.type}</b>
+                  </span>
                   {p.note && <p className="mt-1 whitespace-pre-wrap break-words text-sm text-muted">{p.note}</p>}
                 </div>
                 {canEdit && (
@@ -154,6 +158,7 @@ export function DayDialog({
               {QUICK_TYPES.map((t) => (
                 <Chip
                   key={t}
+                  dot={<TypeDot type={t} />}
                   onClick={() => {
                     setType(t);
                     setPostErr('');

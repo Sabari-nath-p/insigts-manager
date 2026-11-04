@@ -5,6 +5,7 @@ import { Download } from 'lucide-react';
 import { cn } from '@/lib/cn';
 import { Button } from '@/components/ui/button';
 import { downloadCalendarCsv } from '@/lib/content-calendar/csv';
+import { TypeDot } from './type-dot';
 import { DOWS, MONTHS, countPosts, daysIn } from '@/lib/content-calendar/logic';
 import type { CcCalendar } from '@/lib/content-calendar/types';
 
@@ -118,11 +119,16 @@ export function MonthBoard({
 
               {posts.length > 0 && (
                 <>
-                  <span className="text-[11px] font-semibold tabular-nums text-muted sm:hidden">{posts.length}</span>
+                  <span className="flex flex-wrap gap-1 sm:hidden">
+                    {posts.slice(0, 6).map((p) => (
+                      <TypeDot key={p.id} type={p.type} className="h-1.5 w-1.5" />
+                    ))}
+                  </span>
                   <span className="hidden min-w-0 flex-col gap-0.5 sm:flex">
                     {posts.slice(0, 3).map((p) => (
-                      <span key={p.id} title={p.note || undefined} className="truncate rounded-full bg-bg px-2 py-px text-center text-[10.5px] font-medium uppercase tracking-[0.3px] text-text">
-                        {p.type}
+                      <span key={p.id} title={p.note || undefined} className="flex min-w-0 items-center justify-center gap-1.5 rounded-full bg-bg px-2 py-px text-[10.5px] font-medium uppercase tracking-[0.3px] text-text">
+                        <TypeDot type={p.type} />
+                        <span className="truncate">{p.type}</span>
                       </span>
                     ))}
                     {posts.length > 3 && <span className="text-center text-[10.5px] font-medium text-muted">+{posts.length - 3} more</span>}
