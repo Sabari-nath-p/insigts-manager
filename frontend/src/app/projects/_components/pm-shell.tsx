@@ -6,7 +6,8 @@ import dynamic from 'next/dynamic';
 import { usePathname, useRouter } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import * as Dialog from '@radix-ui/react-dialog';
-import { ArrowLeft, BarChart3, CheckSquare, Menu, Plus, Search, Users2, X } from 'lucide-react';
+import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
+import { ArrowLeft, BarChart3, CalendarRange, CheckSquare, FolderPlus, Menu, Plus, Search, Users2, X } from 'lucide-react';
 import { cn } from '@/lib/cn';
 import { Avatar } from '@/components/ui/avatar';
 import { pm, pollEvery } from '@/lib/pm/client';
@@ -16,9 +17,11 @@ import { NotificationsBell } from './notifications-bell';
 // Opened on demand only, so they stay out of the initial bundle.
 const CommandPalette = dynamic(() => import('./command-palette').then((m) => m.CommandPalette), { ssr: false });
 const NewProjectDialog = dynamic(() => import('./new-project-dialog').then((m) => m.NewProjectDialog), { ssr: false });
+const ImportCalendarDialog = dynamic(() => import('./import-calendar-dialog').then((m) => m.ImportCalendarDialog), { ssr: false });
 const ShortcutSheet = dynamic(() => import('./shortcut-sheet').then((m) => m.ShortcutSheet), { ssr: false });
 
 const LAST_PROJECT_KEY = 'pm:lastProject';
+const MENU_ITEM = 'flex cursor-pointer items-center gap-2 rounded-sm px-2 py-1.5 text-sm text-text outline-none data-[highlighted]:bg-black/[0.05]';
 
 function isTyping(el: EventTarget | null): boolean {
   const t = el as HTMLElement | null;
@@ -32,6 +35,7 @@ export function PmShell({ me, initialProjects, children }: { me: PmMe; initialPr
   const [mobileOpen, setMobileOpen] = useState(false);
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [newProjectOpen, setNewProjectOpen] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
   const [sheetOpen, setSheetOpen] = useState(false);
   const gPressed = useRef<number>(0);
 
@@ -112,13 +116,31 @@ export function PmShell({ me, initialProjects, children }: { me: PmMe; initialPr
           <Link href="/projects" onClick={onNavigate} className="text-[11px] font-semibold uppercase tracking-wide text-muted hover:text-text">
             Projects
           </Link>
-          <button
-            aria-label="New project"
-            className="flex h-5 w-5 items-center justify-center rounded-sm text-muted hover:bg-black/[0.05] hover:text-text dark:hover:bg-white/[0.08]"
-            onClick={() => setNewProjectOpen(true)}
-          >
-            <Plus size={14} />
-          </button>
+          <DropdownMenu.Root>
+            <DropdownMenu.Trigger asChild>
+              <button aria-label="New project" className="flex h-5 w-5 items-center justify-center rounded-sm text-muted hover:bg-black/[0.05] hover:text-text dark:hover:bg-white/[0.08]">
+                <Plus size={14} />
+              </button>
+            </DropdownMenu.Trigger>
+            <DropdownMenu.Portal>
+              <DropdownMenu.Content align="start" sideOffset={4} className="z-[80] min-w-60 rounded-lg border border-border bg-surface p-1 outline-none">
+                <DropdownMenu.Item className={MENU_ITEM} onSelect={() => setNewProjectOpen(true)}>
+                  <FolderPlus size={14} className="text-muted" />
+                  <span>
+                    New project
+                    <span className="block text-xs text-muted">Name it and add tasks yourself</span>
+                  </span>
+                </DropdownMenu.Item>
+                <DropdownMenu.Item className={MENU_ITEM} onSelect={() => setImportOpen(true)}>
+                  <CalendarRange size={14} className="text-muted" />
+                  <span>
+                    From the Content Calendar
+                    <span className="block text-xs text-muted">A client&rsquo;s month, one task per post</span>
+                  </span>
+                </DropdownMenu.Item>
+              </DropdownMenu.Content>
+            </DropdownMenu.Portal>
+          </DropdownMenu.Root>
         </div>
         <div className="flex flex-col gap-0.5">
           {active.map((p) => {
@@ -196,6 +218,7 @@ export function PmShell({ me, initialProjects, children }: { me: PmMe; initialPr
 
       <CommandPalette open={paletteOpen} onOpenChange={setPaletteOpen} projects={active} onNewProject={() => setNewProjectOpen(true)} />
       <NewProjectDialog open={newProjectOpen} onOpenChange={setNewProjectOpen} />
+      {importOpen && <ImportCalendarDialog projects={projects} onClose={() => setImportOpen(false)} />}
       <ShortcutSheet open={sheetOpen} onOpenChange={setSheetOpen} />
     </div>
   );

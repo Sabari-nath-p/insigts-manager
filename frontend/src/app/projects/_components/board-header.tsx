@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import * as Menu from '@radix-ui/react-dropdown-menu';
-import { Columns3, List, MoreHorizontal, Search, X } from 'lucide-react';
+import { Columns3, List, ListChecks, MoreHorizontal, Search, X } from 'lucide-react';
 import { cn } from '@/lib/cn';
 import { pm } from '@/lib/pm/client';
 import { colorsInUse, nextColor } from '@/lib/pm/colors';
@@ -22,6 +22,8 @@ export function BoardHeader({
   me,
   filters,
   view,
+  selecting,
+  onToggleSelect,
   setParam,
   clearFilters,
   onRefetch,
@@ -30,6 +32,9 @@ export function BoardHeader({
   me: PmMe;
   filters: BoardFilters;
   view: 'board' | 'list';
+  /** Select mode: tick cards to change several at once. */
+  selecting: boolean;
+  onToggleSelect: () => void;
   setParam: (key: string, value: string | null) => void;
   clearFilters: () => void;
   onRefetch: () => void;
@@ -124,6 +129,20 @@ export function BoardHeader({
 
         <div className="ml-auto flex items-center gap-3">
           {view === 'board' && <span className="hidden text-xs text-muted md:inline">Sorted by due date</span>}
+          {view === 'board' && (
+            <button
+              type="button"
+              aria-pressed={selecting}
+              onClick={onToggleSelect}
+              className={cn(
+                'flex h-8 items-center gap-1.5 rounded-md border px-2.5 text-xs',
+                selecting ? 'border-primary bg-primary-tint font-medium text-primary-dark' : 'border-border text-muted hover:text-text',
+              )}
+            >
+              <ListChecks size={13} />
+              {selecting ? 'Selecting' : 'Select'}
+            </button>
+          )}
           <div className="flex rounded-md border border-border p-0.5" role="group" aria-label="View">
             {(['board', 'list'] as const).map((v) => (
               <button

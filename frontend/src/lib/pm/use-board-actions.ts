@@ -191,7 +191,79 @@ export function useBoardActions(projectKey: string, boardKey: readonly unknown[]
     [read, write, rollback, toast],
   );
 
+  /** Changes the same fields on many tasks at once. Shown instantly; any task the server refuses goes back to how it was. */
+  const patchMany = useCallback(
+    async (tasks: PmTask[], patchFor: (t: PmTask) => TaskPatch) => {
+      const snapshot = read();
+      const list = tasks.filter((t) => !t.id.startsWith('tmp-'));
+      if (!snapshot || list.length === 0) return;
+      const patches = new Map(list.map((t) => [t.id, patchFor(t)]));
+      write((d) => ({
+        ...d,
+        tasks: d.tasks.map((t) => {
+          const patch = patches.get(t.id);
+          if (!patch) return t;
+          const { assigneeIds, ...fields } = patch;
+          return { ...t, ...fields, assignees: assigneeIds ? assigneeIds.map((id) => ({ id, name: memberNames.get(id) ?? '' })) : t.assignees };
+        }),
+      }));
+      const failed: PmTask[] = [];
+      let firstError = '';
+      for (let i = 0; i < list.length; i += 4) {
+        await Promise.all(
+          list.slice(i, i + 4).map(async (t) => {
+            try {
+              await pm(`/tasks/${t.id}`, { method: 'PATCH', body: patches.get(t.id) });
+            } catch (e) {
+              failed.push(t);
+              firstError ||= (e as Error).message;
+            }
+          }),
+        );
+      }
+      if (failed.length) {
+        const before = new Map(failed.map((t) => [t.id, snapshot.tasks.find((x) => x.id === t.id)]));
+        write((d) => ({ ...d, tasks: d.tasks.map((t) => before.get(t.id) ?? t) }));
+        toast(`${failed.length} of ${list.length} tasks could not be updated: ${firstError}`);
+      }
+      qc.invalidateQueries({ queryKey: ['projects'] });
+      qc.invalidateQueries({ queryKey: ['task'] });
+    },
+    [read, write, toast, qc, memberNames],
+  );
+
+  /** Moves many tasks to one column. One at a time, so the server places each card cleanly. */
+  const moveMany = useCallback(
+    async (tasks: PmTask[], columnId: string) => {
+      const snapshot = read();
+      const toColumn = snapshot?.columns.find((c) => c.id === columnId);
+      const list = tasks.filter((t) => !t.id.startsWith('tmp-') && t.columnId !== columnId);
+      if (!snapshot || !toColumn || list.length === 0) return;
+      write((d) => list.reduce((acc, t) => moveInBoard(acc, t.id, columnId, null), d));
+      const failed: PmTask[] = [];
+      let firstError = '';
+      for (const t of list) {
+        try {
+          await pm(`/tasks/${t.id}/move`, { method: 'POST', body: { columnId } });
+        } catch (e) {
+          failed.push(t);
+          firstError ||= (e as Error).message;
+        }
+      }
+      if (failed.length) {
+        const before = new Map(failed.map((t) => [t.id, snapshot.tasks.find((x) => x.id === t.id)]));
+        write((d) => ({ ...d, tasks: d.tasks.map((t) => before.get(t.id) ?? t) }));
+        toast(`${failed.length} of ${list.length} tasks could not be moved: ${firstError}`);
+      } else {
+        toast(`Moved ${list.length} ${list.length === 1 ? 'task' : 'tasks'} to ${toColumn.name}`);
+      }
+      qc.invalidateQueries({ queryKey: ['projects'] });
+      qc.invalidateQueries({ queryKey: ['task'] });
+    },
+    [read, write, toast, qc],
+  );
+
   const refetch = useCallback(() => qc.invalidateQueries({ queryKey: boardKey }), [qc, boardKey]);
 
-  return { createTask, moveTask, patchTask, archiveTask, deleteTask, deleteLabel, refetch };
+  return { createTask, moveTask, moveMany, patchTask, patchMany, archiveTask, deleteTask, deleteLabel, refetch };
 }

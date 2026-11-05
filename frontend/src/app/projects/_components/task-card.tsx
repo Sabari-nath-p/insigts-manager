@@ -2,7 +2,7 @@
 
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { MessageSquare } from 'lucide-react';
+import { Check, MessageSquare } from 'lucide-react';
 import { cn } from '@/lib/cn';
 import { AvatarStack } from './avatar-stack';
 import { PRIORITY_COLOR, PRIORITY_LABEL, formatDue, isOverdue } from '@/lib/pm/format';
@@ -52,17 +52,25 @@ export function SortableTaskCard({
   labels,
   done,
   onOpen,
+  selecting = false,
+  selected = false,
+  onToggle,
 }: {
   task: PmTask;
   labels: Map<string, PmLabel>;
   done: boolean;
   onOpen: (task: PmTask) => void;
+  /** Select mode: clicking a card ticks it instead of opening it, and cards cannot be dragged. */
+  selecting?: boolean;
+  selected?: boolean;
+  onToggle?: (task: PmTask) => void;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: task.id,
     data: { columnId: task.columnId },
-    disabled: task.id.startsWith('tmp-'),
+    disabled: task.id.startsWith('tmp-') || selecting,
   });
+  const activate = () => (selecting ? onToggle?.(task) : onOpen(task));
 
   return (
     <div
@@ -70,18 +78,32 @@ export function SortableTaskCard({
       style={{ transform: CSS.Transform.toString(transform), transition }}
       {...attributes}
       {...listeners}
-      role="button"
+      // Select mode is not a drag list: drop the "sortable / disabled" hints the drag library adds.
+      {...(selecting && { 'aria-disabled': undefined, 'aria-roledescription': undefined })}
+      role={selecting ? 'checkbox' : 'button'}
+      aria-checked={selecting ? selected : undefined}
       aria-label={`${task.ref} ${task.title}`}
-      onClick={() => onOpen(task)}
+      onClick={activate}
       onKeyDown={(e) => {
-        if (e.key === 'Enter') onOpen(task);
-        else listeners?.onKeyDown?.(e);
+        if (e.key === 'Enter' || (selecting && e.key === ' ')) {
+          e.preventDefault();
+          activate();
+        } else listeners?.onKeyDown?.(e);
       }}
       className={cn(
-        'cursor-pointer rounded-lg border border-border bg-surface px-2.5 py-2 outline-none hover:border-muted/50 focus-visible:ring-2 focus-visible:ring-primary',
+        'relative cursor-pointer rounded-lg border border-border bg-surface px-2.5 py-2 outline-none hover:border-muted/50 focus-visible:ring-2 focus-visible:ring-primary',
         isDragging && 'opacity-40',
+        selected && 'border-primary bg-primary-tint/40 hover:border-primary',
       )}
     >
+      {selecting && (
+        <span
+          aria-hidden
+          className={cn('absolute right-2 top-2 flex h-4 w-4 items-center justify-center rounded-sm border', selected ? 'border-primary bg-primary text-on-primary' : 'border-border bg-surface')}
+        >
+          {selected && <Check size={11} strokeWidth={3} />}
+        </span>
+      )}
       <CardBody task={task} labels={labels} done={done} />
     </div>
   );
