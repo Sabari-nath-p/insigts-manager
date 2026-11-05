@@ -28,6 +28,7 @@ const TaskDrawer = dynamic(() => import('./task-drawer').then((m) => m.TaskDrawe
 const ListView = dynamic(() => import('./list-view').then((m) => m.ListView), { ssr: false });
 import { BoardHeader } from './board-header';
 import { ColumnMenu } from './column-menu';
+import { SelectionBar } from './selection-bar';
 
 const OLD_DONE_PARAM = 'olderDone';
 
@@ -93,6 +94,28 @@ export function BoardView({ projectKey, me, initial }: { projectKey: string; me:
     return () => window.removeEventListener('pm:new-task', onNew);
   }, [data.columns]);
 
+  // Select mode: tick several cards, then change them all together from the bar at the bottom.
+  const [selecting, setSelecting] = useState(false);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const toggleSelected = useCallback(
+    (t: PmTask) =>
+      setSelected((prev) => {
+        const next = new Set(prev);
+        if (next.has(t.id)) next.delete(t.id);
+        else next.add(t.id);
+        return next;
+      }),
+    [],
+  );
+  const stopSelecting = useCallback(() => {
+    setSelecting(false);
+    setSelected(new Set());
+  }, []);
+  const selectedTasks = useMemo(() => data.tasks.filter((t) => selected.has(t.id)), [data.tasks, selected]);
+  useEffect(() => {
+    if (view !== 'board') stopSelecting();
+  }, [view, stopSelecting]);
+
   // --- Drag and drop -------------------------------------------------------
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
@@ -140,6 +163,8 @@ export function BoardView({ projectKey, me, initial }: { projectKey: string; me:
         me={me}
         filters={filters}
         view={view}
+        selecting={selecting}
+        onToggleSelect={() => (selecting ? stopSelecting() : setSelecting(true))}
         setParam={setParam}
         clearFilters={() => {
           const next = new URLSearchParams(window.location.search);
@@ -169,6 +194,9 @@ export function BoardView({ projectKey, me, initial }: { projectKey: string; me:
                 adding={addingIn === column.id}
                 setAdding={(on) => setAddingIn(on ? column.id : null)}
                 onAdd={(title) => actions.createTask(column.id, title, filters.assignee === 'me' ? { assigneeIds: [me.userId] } : {})}
+                selecting={selecting}
+                selected={selected}
+                onToggle={toggleSelected}
                 onOpen={openTask}
                 onChanged={actions.refetch}
               />
@@ -194,6 +222,22 @@ export function BoardView({ projectKey, me, initial }: { projectKey: string; me:
         actions={actions}
         onClose={closeTask}
       />
+
+      {selecting && view === 'board' && (
+        <SelectionBar
+          count={selectedTasks.length}
+          visibleCount={visible.length}
+          members={data.members}
+          columns={data.columns}
+          onSelectAll={() => setSelected(new Set(visible.map((t) => t.id)))}
+          onClear={() => setSelected(new Set())}
+          onDone={stopSelecting}
+          onAssign={(ids) => actions.patchMany(selectedTasks, (t) => ({ assigneeIds: [...new Set([...t.assignees.map((a) => a.id), ...ids])] }))}
+          onDue={(date) => actions.patchMany(selectedTasks, () => ({ dueDate: date }))}
+          onPriority={(priority) => actions.patchMany(selectedTasks, () => ({ priority }))}
+          onMove={(columnId) => actions.moveMany(selectedTasks, columnId)}
+        />
+      )}
     </div>
   );
 }
@@ -213,6 +257,9 @@ function Column({
   adding,
   setAdding,
   onAdd,
+  selecting,
+  selected,
+  onToggle,
   onOpen,
   onChanged,
 }: {
@@ -230,6 +277,9 @@ function Column({
   adding: boolean;
   setAdding: (on: boolean) => void;
   onAdd: (title: string) => void;
+  selecting: boolean;
+  selected: Set<string>;
+  onToggle: (task: PmTask) => void;
   onOpen: (task: PmTask) => void;
   onChanged: () => void;
 }) {
@@ -259,7 +309,7 @@ function Column({
       <SortableContext items={tasks.map((t) => t.id)} strategy={verticalListSortingStrategy}>
         <div className="flex min-h-[40px] flex-1 flex-col gap-2 overflow-y-auto px-2 pb-2 thin-scrollbar">
           {tasks.map((t) => (
-            <SortableTaskCard key={t.id} task={t} labels={labels} done={done} onOpen={onOpen} />
+            <SortableTaskCard key={t.id} task={t} labels={labels} done={done} onOpen={onOpen} selecting={selecting} selected={selected.has(t.id)} onToggle={onToggle} />
           ))}
           {tasks.length === 0 && !adding && (
             <p className="px-1 py-2 text-xs text-muted">{filtered ? 'No tasks match the filters.' : 'No tasks yet. Press C to add one.'}</p>
@@ -273,7 +323,7 @@ function Column({
         </div>
       </SortableContext>
 
-      {!adding && (
+      {!adding && !selecting && (
         <button className="mx-2 mb-2 flex items-center gap-1.5 rounded-sm px-1.5 py-1 text-left text-xs text-muted hover:bg-black/[0.04] hover:text-text" onClick={() => setAdding(true)}>
           <Plus size={12} /> Add task
         </button>

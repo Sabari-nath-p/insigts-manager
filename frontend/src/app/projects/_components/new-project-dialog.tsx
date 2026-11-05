@@ -8,14 +8,9 @@ import { X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { pm } from '@/lib/pm/client';
 import { colorsInUse, nextColor } from '@/lib/pm/colors';
+import { suggestKey } from '@/lib/pm/project-key';
 import type { PmProject } from '@/lib/pm/types';
 import { ColorPicker } from './color-picker';
-
-function suggestKey(name: string): string {
-  const words = name.trim().toUpperCase().replace(/[^A-Z0-9 ]/g, '').split(/\s+/).filter(Boolean);
-  const key = words.length > 1 ? words.map((w) => w[0]).join('') : (words[0] ?? '');
-  return key.slice(0, 4);
-}
 
 export function NewProjectDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (o: boolean) => void }) {
   const router = useRouter();
