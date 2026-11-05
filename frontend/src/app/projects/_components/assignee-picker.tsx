@@ -1,8 +1,9 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import * as Popover from '@radix-ui/react-popover';
 import { Plus, X } from 'lucide-react';
+import { cn } from '@/lib/cn';
 import { Avatar } from '@/components/ui/avatar';
 import type { PmMember } from '@/lib/pm/types';
 
@@ -21,12 +22,21 @@ export function AssigneePicker({
 }) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
+  // The highlighted row. Up and Down move it while the cursor stays in the search box; Enter picks it.
+  const [active, setActive] = useState(0);
+  const list = useRef<HTMLUListElement>(null);
   const ids = assignees.map((a) => a.id);
   const available = members.filter((m) => !ids.includes(m.id));
   const onlyOne = assignees.length === 1;
 
   const text = query.trim().toLowerCase();
   const matches = text ? available.filter((m) => m.fullName.toLowerCase().includes(text) || m.email.toLowerCase().includes(text)) : available;
+  const current = Math.min(active, Math.max(matches.length - 1, 0));
+
+  // Keep the highlighted row in view when the arrow keys move past the edge of a long list.
+  useEffect(() => {
+    list.current?.querySelector(`[data-index="${current}"]`)?.scrollIntoView({ block: 'nearest' });
+  }, [current, matches.length]);
 
   function choose(id: string) {
     onChange([...ids, id]);
@@ -61,7 +71,10 @@ export function AssigneePicker({
         open={open}
         onOpenChange={(next) => {
           setOpen(next);
-          if (!next) setQuery('');
+          if (!next) {
+            setQuery('');
+            setActive(0);
+          }
         }}
       >
         <Popover.Trigger asChild>
@@ -82,13 +95,25 @@ export function AssigneePicker({
               <input
                 autoFocus
                 type="search"
+                role="combobox"
+                aria-expanded="true"
+                aria-controls="assignee-options"
+                aria-activedescendant={matches[current] ? `assignee-option-${matches[current].id}` : undefined}
                 value={query}
-                onChange={(e) => setQuery(e.target.value)}
+                onChange={(e) => {
+                  setQuery(e.target.value);
+                  setActive(0);
+                }}
                 onKeyDown={(e) => {
-                  // Enter picks the first match, so typing a name and pressing Enter is enough.
-                  if (e.key === 'Enter' && matches[0]) {
+                  if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
                     e.preventDefault();
-                    choose(matches[0].id);
+                    if (matches.length === 0) return;
+                    setActive((current + (e.key === 'ArrowDown' ? 1 : matches.length - 1)) % matches.length);
+                  } else if (e.key === 'Home' && e.ctrlKey) {
+                    setActive(0);
+                  } else if (e.key === 'Enter' && matches[current]) {
+                    e.preventDefault();
+                    choose(matches[current].id);
                   }
                 }}
                 placeholder="Search people"
@@ -96,10 +121,16 @@ export function AssigneePicker({
                 className="h-8 w-full rounded-md border border-border bg-transparent px-2 text-sm text-text outline-none placeholder:text-muted focus:border-primary"
               />
             </div>
-            <ul className="max-h-56 overflow-y-auto overscroll-contain thin-scrollbar">
-              {matches.map((m) => (
-                <li key={m.id}>
-                  <button type="button" onClick={() => choose(m.id)} className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm text-text hover:bg-black/5">
+            <ul id="assignee-options" role="listbox" ref={list} className="max-h-56 overflow-y-auto overscroll-contain thin-scrollbar">
+              {matches.map((m, i) => (
+                <li key={m.id} role="option" id={`assignee-option-${m.id}`} data-index={i} aria-selected={i === current}>
+                  <button
+                    type="button"
+                    tabIndex={-1}
+                    onClick={() => choose(m.id)}
+                    onMouseMove={() => setActive(i)}
+                    className={cn('flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm text-text', i === current ? 'bg-black/5 dark:bg-white/10' : '')}
+                  >
                     <Avatar name={m.fullName} size="sm" />
                     <span className="min-w-0 truncate">{m.fullName}</span>
                   </button>

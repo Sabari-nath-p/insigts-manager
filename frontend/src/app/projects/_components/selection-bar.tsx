@@ -1,8 +1,9 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import * as Menu from '@radix-ui/react-dropdown-menu';
 import * as Popover from '@radix-ui/react-popover';
+import { cn } from '@/lib/cn';
 import { Avatar } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { PRIORITY_COLOR, PRIORITY_LABEL } from '@/lib/pm/format';
@@ -115,8 +116,26 @@ function AssignMany({ members, disabled, onApply }: { members: PmMember[]; disab
   const [query, setQuery] = useState('');
   const [chosen, setChosen] = useState<Set<string>>(new Set());
 
+  // The highlighted row: Up and Down move it from the search box, Enter ticks or unticks it.
+  const [active, setActive] = useState(0);
+  const list = useRef<HTMLUListElement>(null);
+
   const text = query.trim().toLowerCase();
   const shown = text ? members.filter((m) => m.fullName.toLowerCase().includes(text) || m.email.toLowerCase().includes(text)) : members;
+  const current = Math.min(active, Math.max(shown.length - 1, 0));
+
+  useEffect(() => {
+    list.current?.querySelector(`[data-index="${current}"]`)?.scrollIntoView({ block: 'nearest' });
+  }, [current, shown.length]);
+
+  function toggle(id: string) {
+    setChosen((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
 
   return (
     <Popover.Root
@@ -125,6 +144,7 @@ function AssignMany({ members, disabled, onApply }: { members: PmMember[]; disab
         setOpen(next);
         if (!next) {
           setQuery('');
+          setActive(0);
           setChosen(new Set());
         }
       }}
@@ -142,29 +162,33 @@ function AssignMany({ members, disabled, onApply }: { members: PmMember[]; disab
               autoFocus
               type="search"
               value={query}
-              onChange={(e) => setQuery(e.target.value)}
+              onChange={(e) => {
+                setQuery(e.target.value);
+                setActive(0);
+              }}
+              onKeyDown={(e) => {
+                if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+                  e.preventDefault();
+                  if (shown.length === 0) return;
+                  setActive((current + (e.key === 'ArrowDown' ? 1 : shown.length - 1)) % shown.length);
+                } else if (e.key === 'Enter' && shown[current]) {
+                  e.preventDefault();
+                  toggle(shown[current].id);
+                }
+              }}
               placeholder="Search people"
               aria-label="Search people"
               className="h-8 w-full rounded-md border border-border bg-transparent px-2 text-sm text-text outline-none placeholder:text-muted focus:border-primary"
             />
           </div>
-          <ul className="max-h-52 overflow-y-auto overscroll-contain thin-scrollbar">
-            {shown.map((m) => (
-              <li key={m.id}>
-                <label className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm text-text hover:bg-black/5">
-                  <input
-                    type="checkbox"
-                    className="h-4 w-4 accent-[color:var(--color-primary)]"
-                    checked={chosen.has(m.id)}
-                    onChange={() =>
-                      setChosen((prev) => {
-                        const next = new Set(prev);
-                        if (next.has(m.id)) next.delete(m.id);
-                        else next.add(m.id);
-                        return next;
-                      })
-                    }
-                  />
+          <ul ref={list} className="max-h-52 overflow-y-auto overscroll-contain thin-scrollbar">
+            {shown.map((m, i) => (
+              <li key={m.id} data-index={i}>
+                <label
+                  onMouseMove={() => setActive(i)}
+                  className={cn('flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm text-text', i === current ? 'bg-black/5 dark:bg-white/10' : '')}
+                >
+                  <input type="checkbox" tabIndex={-1} className="h-4 w-4 accent-[color:var(--color-primary)]" checked={chosen.has(m.id)} onChange={() => toggle(m.id)} />
                   <Avatar name={m.fullName} size="sm" />
                   <span className="min-w-0 truncate">{m.fullName}</span>
                 </label>
