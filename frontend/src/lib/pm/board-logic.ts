@@ -1,5 +1,22 @@
 import { positionBetween, todayIso } from './format';
-import type { BoardData, BoardFilters, PmTask } from './types';
+import type { BoardData, BoardFilters, PmTask, Priority } from './types';
+
+const PRIORITY_RANK: Record<Priority, number> = { urgent: 0, high: 1, medium: 2, low: 3 };
+
+/**
+ * The order cards sit in inside an open column: the soonest due date first (overdue ones are the soonest),
+ * tasks with no due date last. On the same date the more urgent one goes first. Whatever is still tied
+ * keeps the order it was dragged into.
+ */
+export function byDueThenPosition(a: PmTask, b: PmTask): number {
+  if (a.dueDate && b.dueDate) {
+    if (a.dueDate !== b.dueDate) return a.dueDate < b.dueDate ? -1 : 1;
+    if (a.priority !== b.priority) return PRIORITY_RANK[a.priority] - PRIORITY_RANK[b.priority];
+  } else if (a.dueDate || b.dueDate) {
+    return a.dueDate ? -1 : 1;
+  }
+  return a.position - b.position;
+}
 
 export const FILTER_KEYS = ['assignee', 'priority', 'label', 'due', 'q'] as const;
 
@@ -39,10 +56,14 @@ export function applyFilters(tasks: PmTask[], f: BoardFilters, meId: string, don
   });
 }
 
-export function tasksByColumn(tasks: PmTask[], columnIds: string[]): Map<string, PmTask[]> {
+/**
+ * Groups tasks by column, each column in display order. Open columns sort by due date; "done" columns keep
+ * their own order (most recently moved in first), because a due date means nothing once the work is finished.
+ */
+export function tasksByColumn(tasks: PmTask[], columnIds: string[], doneColumnIds: Set<string> = new Set()): Map<string, PmTask[]> {
   const map = new Map<string, PmTask[]>(columnIds.map((id) => [id, []]));
   for (const t of tasks) map.get(t.columnId)?.push(t);
-  for (const list of map.values()) list.sort((a, b) => a.position - b.position);
+  for (const [id, list] of map) list.sort(doneColumnIds.has(id) ? (a, b) => a.position - b.position : byDueThenPosition);
   return map;
 }
 

@@ -56,7 +56,7 @@ export function BoardView({ projectKey, me, initial }: { projectKey: string; me:
   const actions = useBoardActions(projectKey, boardKey, memberNames);
 
   const visible = useMemo(() => applyFilters(data.tasks, filters, me.userId, doneIds), [data.tasks, filters, me.userId, doneIds]);
-  const byColumn = useMemo(() => tasksByColumn(visible, data.columns.map((c) => c.id)), [visible, data.columns]);
+  const byColumn = useMemo(() => tasksByColumn(visible, data.columns.map((c) => c.id), doneIds), [visible, data.columns, doneIds]);
 
   // Filter state lives in the URL, written with replaceState so typing never triggers a server render.
   const setParam = useCallback(
