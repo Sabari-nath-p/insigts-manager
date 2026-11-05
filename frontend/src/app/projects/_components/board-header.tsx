@@ -122,18 +122,21 @@ export function BoardHeader({
           </Menu.Portal>
         </Menu.Root>
 
-        <div className="ml-auto flex rounded-md border border-border p-0.5" role="group" aria-label="View">
-          {(['board', 'list'] as const).map((v) => (
-            <button
-              key={v}
-              aria-pressed={view === v}
-              onClick={() => setParam('view', v === 'board' ? null : v)}
-              className={cn('flex items-center gap-1.5 rounded-sm px-2 py-1 text-xs', view === v ? 'bg-primary-tint font-medium text-primary-dark' : 'text-muted hover:text-text')}
-            >
-              {v === 'board' ? <Columns3 size={13} /> : <List size={13} />}
-              {v === 'board' ? 'Board' : 'List'}
-            </button>
-          ))}
+        <div className="ml-auto flex items-center gap-3">
+          {view === 'board' && <span className="hidden text-xs text-muted md:inline">Sorted by due date</span>}
+          <div className="flex rounded-md border border-border p-0.5" role="group" aria-label="View">
+            {(['board', 'list'] as const).map((v) => (
+              <button
+                key={v}
+                aria-pressed={view === v}
+                onClick={() => setParam('view', v === 'board' ? null : v)}
+                className={cn('flex items-center gap-1.5 rounded-sm px-2 py-1 text-xs', view === v ? 'bg-primary-tint font-medium text-primary-dark' : 'text-muted hover:text-text')}
+              >
+                {v === 'board' ? <Columns3 size={13} /> : <List size={13} />}
+                {v === 'board' ? 'Board' : 'List'}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
