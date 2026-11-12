@@ -16,6 +16,12 @@ export interface ScheduleWindow {
  */
 export const APP_TIMEZONE = process.env.APP_TIMEZONE || 'Asia/Kolkata';
 
+/**
+ * The time of day (company timezone) the auto check-out runs. Anyone still clocked in then forgot to check out:
+ * they are checked out at their scheduled end of day and the record is marked "not checked out".
+ */
+export const AUTO_CHECKOUT_TIME = '21:00';
+
 /** UTC offset (in minutes) that `timeZone` is at for the given instant — handles DST correctly. */
 function tzOffsetMinutes(instant: Date, timeZone: string): number {
   const parts = new Intl.DateTimeFormat('en-US', {
