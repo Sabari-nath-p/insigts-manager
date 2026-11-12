@@ -83,10 +83,15 @@ export function buildAttendanceDayView(params: {
       else if (!isWorkingDay) status = AttendanceStatus.week_off_worked;
     }
     // While still checked in, workedMinutes is null (only finalized at checkout) — compute
-    // worked-so-far against the current instant instead of showing a stale 0 to admins.
+    // worked-so-far against the current instant instead of showing a stale 0 to admins. That is only
+    // meaningful for the day in progress: a past day that was never checked out has no end time, and
+    // measuring it against "now" made it grow by a minute every minute (160+ hours). It shows 0, the
+    // same as payroll treats it. During a break the clock stops at the moment the break began.
     const workedMinutes =
       record.workedMinutes ??
-      (record.checkInAt ? computeWorkedMinutes(record.checkInAt, new Date(), record.totalBreakMinutes) : 0);
+      (record.checkInAt && !isPastIncomplete
+        ? computeWorkedMinutes(record.checkInAt, record.breakStartAt ?? new Date(), record.totalBreakMinutes)
+        : 0);
     return {
       recordId: record.id,
       userId,

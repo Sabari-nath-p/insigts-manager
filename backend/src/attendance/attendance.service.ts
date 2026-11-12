@@ -1,4 +1,4 @@
-import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, ForbiddenException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { AttendanceRecord, AttendanceStatus, PresenceStatus, User, WorkingType } from '@prisma/client';
 import { WeekDay } from '../common/week-day';
 import { PrismaService } from '../prisma/prisma.service';
@@ -8,6 +8,7 @@ import { AttendanceSettingsService } from './attendance-settings.service';
 import { CorrectAttendanceDto } from './dto/correct-attendance.dto';
 import { ATTENDED_STATUSES, AttendanceDayView, buildAttendanceDayView } from './attendance-day-view';
 import {
+  AUTO_CHECKOUT_TIME,
   combineDateAndTime,
   computeEarlyCheckoutMinutes,
   computeLateMinutes,
@@ -26,6 +27,13 @@ import { NotificationsService } from '../notifications/notifications.service';
 /** "Today" in the company's operating timezone (APP_TIMEZONE) — not the server process's local date or UTC. */
 function todayDateString(): string {
   return zonedDateString();
+}
+
+/** The calendar day before today in APP_TIMEZONE (plain date maths on the civil date, no instants involved). */
+function yesterdayDateString(): string {
+  const d = new Date(`${todayDateString()}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() - 1);
+  return d.toISOString().slice(0, 10);
 }
 
 function dateRangeInclusive(from: string, to: string): string[] {
@@ -80,6 +88,8 @@ const MAX_MATRIX_CELLS = 4000; // users x days safety cap for admin table/analyt
 
 @Injectable()
 export class AttendanceService {
+  private readonly logger = new Logger(AttendanceService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly settingsService: AttendanceSettingsService,
@@ -151,73 +161,159 @@ export class AttendanceService {
     return saved;
   }
 
-  async checkOut(userId: string): Promise<AttendanceRecord> {
-    const date = todayDateString();
-    const record = await this.prisma.attendanceRecord.findUnique({ where: { userId_date: { userId, date } } });
+  /**
+   * The record the person is clocked in on right now: opened and not yet closed, from today or yesterday.
+   * Finding it by status, not by today's date, lets a shift that runs past midnight still be paused and ended
+   * (looking up "today's" record found nothing after 00:00 and the check-out was refused).
+   */
+  private findOpenRecord(userId: string): Promise<AttendanceRecord | null> {
+    return this.prisma.attendanceRecord.findFirst({
+      where: { userId, checkInAt: { not: null }, checkOutAt: null, date: { gte: yesterdayDateString() } },
+      orderBy: { date: 'desc' },
+    });
+  }
 
-    if (!record || !record.checkInAt) {
+  async checkOut(userId: string): Promise<AttendanceRecord> {
+    const record = await this.findOpenRecord(userId);
+    if (!record) {
+      const today = await this.prisma.attendanceRecord.findUnique({ where: { userId_date: { userId, date: todayDateString() } } });
+      if (today?.checkOutAt) {
+        throw new ConflictException('Already checked out today');
+      }
       throw new BadRequestException('You must check in before checking out');
-    }
-    if (record.checkOutAt) {
-      throw new ConflictException('Already checked out today');
     }
     if (record.breakStartAt) {
       throw new ConflictException('End your current break before checking out');
     }
 
     const settings = await this.settingsService.get();
-    const checkOutAt = new Date();
-    const workedMinutes = computeWorkedMinutes(new Date(record.checkInAt), checkOutAt, record.totalBreakMinutes);
-    const earlyCheckoutMinutes = computeEarlyCheckoutMinutes(
-      record.scheduledEndTime ? combineDateAndTime(date, record.scheduledEndTime) : null,
-      checkOutAt,
-      settings.earlyCheckoutGraceMinutes,
-    );
-    const overtimeMinutes = computeOvertimeMinutes(
-      workedMinutes,
-      record.requiredMinutes ?? settings.requiredMinutesPerDay,
-      settings.overtimeThresholdMinutes,
-    );
-    const status = deriveCompletedStatus(
-      workedMinutes,
-      record.requiredMinutes ?? settings.requiredMinutesPerDay,
-      record.lateMinutes,
-      earlyCheckoutMinutes,
-      settings.halfDayThresholdMinutes,
-    );
-
-    const saved = await this.prisma.attendanceRecord.update({
-      where: { id: record.id },
-      data: { checkOutAt, workedMinutes, earlyCheckoutMinutes, overtimeMinutes, status },
-    });
+    const saved = await this.finishRecord(record, new Date(), settings);
     await this.syncPresence(userId, PresenceStatus.offline);
     return saved;
   }
 
-  async breakStart(userId: string): Promise<AttendanceRecord> {
-    const date = todayDateString();
-    const record = await this.prisma.attendanceRecord.findUnique({ where: { userId_date: { userId, date } } });
-
-    if (!record || !record.checkInAt) {
-      throw new BadRequestException('You must check in before starting a break');
+  /**
+   * Writes the check-out: worked time, early checkout, overtime and the final status. Used both when a person
+   * checks out and by the 21:00 auto check-out, so the two can never calculate differently. A break still
+   * running ends at the check-out, counting up to that moment and no further.
+   *
+   * `forgotten` is the auto check-out: the person never checked out, so the record is marked "not checked out"
+   * and gets no overtime or early-checkout, whatever the clock says.
+   */
+  private async finishRecord(
+    record: AttendanceRecord,
+    checkOutAt: Date,
+    settings: AttendanceSettings,
+    forgotten = false,
+  ): Promise<AttendanceRecord> {
+    if (!record.checkInAt) {
+      throw new BadRequestException('You must check in before checking out');
     }
-    if (record.checkOutAt) {
-      throw new ConflictException('Attendance for today is already complete');
+
+    let totalBreakMinutes = record.totalBreakMinutes;
+    let openBreakMinutes = 0;
+    if (record.breakStartAt) {
+      openBreakMinutes = Math.max(Math.round((checkOutAt.getTime() - new Date(record.breakStartAt).getTime()) / 60000), 0);
+      totalBreakMinutes += openBreakMinutes;
+    }
+
+    const requiredMinutes = record.requiredMinutes ?? settings.requiredMinutesPerDay;
+    const workedMinutes = computeWorkedMinutes(new Date(record.checkInAt), checkOutAt, totalBreakMinutes);
+    const earlyCheckoutMinutes = forgotten
+      ? 0
+      : computeEarlyCheckoutMinutes(
+          record.scheduledEndTime ? combineDateAndTime(record.date, record.scheduledEndTime) : null,
+          checkOutAt,
+          settings.earlyCheckoutGraceMinutes,
+        );
+    const overtimeMinutes = forgotten ? 0 : computeOvertimeMinutes(workedMinutes, requiredMinutes, settings.overtimeThresholdMinutes);
+    const status = forgotten
+      ? AttendanceStatus.not_checked_out
+      : deriveCompletedStatus(workedMinutes, requiredMinutes, record.lateMinutes, earlyCheckoutMinutes, settings.halfDayThresholdMinutes);
+
+    const saved = await this.prisma.attendanceRecord.update({
+      where: { id: record.id },
+      data: { checkOutAt, workedMinutes, earlyCheckoutMinutes, overtimeMinutes, status, totalBreakMinutes, breakStartAt: null },
+    });
+    if (record.breakStartAt) {
+      // A break that began after the check-out time (auto check-out only) ends where it began, never before.
+      const endAt = new Date(Math.max(checkOutAt.getTime(), new Date(record.breakStartAt).getTime()));
+      await this.prisma.attendanceBreak.updateMany({
+        where: { attendanceRecordId: record.id, endAt: null },
+        data: { endAt, durationMinutes: openBreakMinutes },
+      });
+    }
+    return saved;
+  }
+
+  /**
+   * Run every day at 21:00 (see AutoCheckoutJob). Everyone still clocked in today forgot to check out. Each is
+   * checked out at their own scheduled end of day (the end of work, e.g. 19:00, not the 21:00 the job runs at),
+   * so the extra two hours are never counted as overtime, and the record is marked "not checked out" so it is
+   * easy to see who forgot. Someone who clocked in after their end time is closed at that moment with no time
+   * worked. Only today's records are touched, so older days are never rewritten. One record failing is logged
+   * and skipped; it never stops the others or throws.
+   */
+  async autoCloseOpenRecords(): Promise<{ closed: number; skipped: number }> {
+    const date = todayDateString();
+    const cutoff = combineDateAndTime(date, AUTO_CHECKOUT_TIME);
+    // Never check anyone out before the job's time: if this is ever called early, it does nothing.
+    if (Date.now() < cutoff.getTime()) {
+      return { closed: 0, skipped: 0 };
+    }
+
+    const [open, settings] = await Promise.all([
+      this.prisma.attendanceRecord.findMany({ where: { date, checkInAt: { lt: cutoff }, checkOutAt: null } }),
+      this.settingsService.get(),
+    ]);
+
+    let closed = 0;
+    let skipped = 0;
+    for (const record of open) {
+      try {
+        const checkInAt = new Date(record.checkInAt as Date);
+        const endOfDay = combineDateAndTime(record.date, record.scheduledEndTime ?? settings.workEndTime);
+        const closeAt = new Date(Math.max(endOfDay.getTime(), checkInAt.getTime()));
+        await this.finishRecord(record, closeAt, settings, true);
+        await this.syncPresence(record.userId, PresenceStatus.offline);
+        closed += 1;
+      } catch (e) {
+        skipped += 1;
+        this.logger.warn(`Auto check-out skipped record ${record.id}: ${(e as Error).message}`);
+      }
+    }
+    return { closed, skipped };
+  }
+
+  async breakStart(userId: string): Promise<AttendanceRecord> {
+    const record = await this.findOpenRecord(userId);
+    if (!record) {
+      const today = await this.prisma.attendanceRecord.findUnique({ where: { userId_date: { userId, date: todayDateString() } } });
+      if (today?.checkOutAt) {
+        throw new ConflictException('Attendance for today is already complete');
+      }
+      throw new BadRequestException('You must check in before starting a break');
     }
     if (record.breakStartAt) {
       throw new ConflictException('Already on a break');
     }
 
     const startAt = new Date();
-    const saved = await this.prisma.attendanceRecord.update({ where: { id: record.id }, data: { breakStartAt: startAt } });
+    // Only one request can flip "not on a break" to "on a break", so a double click can not log the break twice.
+    const { count } = await this.prisma.attendanceRecord.updateMany({
+      where: { id: record.id, breakStartAt: null, checkOutAt: null },
+      data: { breakStartAt: startAt },
+    });
+    if (count === 0) {
+      throw new ConflictException('Already on a break');
+    }
     await this.prisma.attendanceBreak.create({ data: { attendanceRecordId: record.id, startAt } });
     await this.syncPresence(userId, PresenceStatus.on_break);
-    return saved;
+    return this.prisma.attendanceRecord.findUniqueOrThrow({ where: { id: record.id } });
   }
 
   async breakEnd(userId: string): Promise<AttendanceRecord> {
-    const date = todayDateString();
-    const record = await this.prisma.attendanceRecord.findUnique({ where: { userId_date: { userId, date } } });
+    const record = await this.findOpenRecord(userId);
 
     if (!record || !record.breakStartAt) {
       throw new BadRequestException('You are not currently on a break');
@@ -245,8 +341,12 @@ export class AttendanceService {
     return saved;
   }
 
-  getToday(userId: string): Promise<AttendanceRecord | null> {
-    return this.prisma.attendanceRecord.findUnique({ where: { userId_date: { userId, date: todayDateString() } } });
+  /** What the person is working on right now: their open record (even one from before midnight), else today's. */
+  async getToday(userId: string): Promise<AttendanceRecord | null> {
+    return (
+      (await this.findOpenRecord(userId)) ??
+      this.prisma.attendanceRecord.findUnique({ where: { userId_date: { userId, date: todayDateString() } } })
+    );
   }
 
   // ==========================================================================
