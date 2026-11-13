@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Download } from 'lucide-react';
+import { Check, Download } from 'lucide-react';
 import { cn } from '@/lib/cn';
 import { Button } from '@/components/ui/button';
 import { downloadCalendarCsv } from '@/lib/content-calendar/csv';
@@ -36,6 +36,7 @@ export function MonthBoard({
   const total = daysIn(cal);
   const startWeekday = new Date(cal.year, cal.month, 1).getDay();
   const planned = countPosts(cal);
+  const doneCount = Object.values(cal.days).reduce((n, d) => n + d.posts.filter((p) => p.done).length, 0);
   const specials = Object.entries(cal.days)
     .filter(([, d]) => d.marker)
     .map(([day, d]) => ({ day: Number(day), label: d.marker!.label }))
@@ -56,7 +57,7 @@ export function MonthBoard({
       <div className="mb-4 flex flex-col gap-4 sm:mb-5 sm:flex-row sm:items-end sm:justify-between">
         <div className="min-w-0">
           <p className="break-words text-[12px] uppercase tracking-[0.72px] text-muted">
-            {cal.client} &middot; {planned} {planned === 1 ? 'post' : 'posts'} planned
+            {cal.client} &middot; {planned} {planned === 1 ? 'post' : 'posts'} planned{doneCount > 0 && ` · ${doneCount} done`}
           </p>
           <h2 className="mt-1 text-[40px] leading-none text-text sm:text-[48px]" style={{ fontWeight: 330, fontFamily: DISPLAY_FONT }}>
             {MONTHS[cal.month]} <span className="text-muted">{cal.year}</span>
@@ -120,14 +121,21 @@ export function MonthBoard({
               {posts.length > 0 && (
                 <>
                   <span className="flex flex-wrap gap-1 sm:hidden">
-                    {posts.slice(0, 6).map((p) => (
-                      <TypeDot key={p.id} type={p.type} className="h-1.5 w-1.5" />
-                    ))}
+                    {posts.slice(0, 6).map((p) =>
+                      p.done ? <Check key={p.id} size={9} strokeWidth={4} className="text-emerald-600" aria-hidden /> : <TypeDot key={p.id} type={p.type} className="h-1.5 w-1.5" />,
+                    )}
                   </span>
                   <span className="hidden min-w-0 flex-col gap-0.5 sm:flex">
                     {posts.slice(0, 3).map((p) => (
-                      <span key={p.id} title={p.note || undefined} className="flex min-w-0 items-center justify-center gap-1.5 rounded-full bg-bg px-2 py-px text-[10.5px] font-medium uppercase tracking-[0.3px] text-text">
-                        <TypeDot type={p.type} />
+                      <span
+                        key={p.id}
+                        title={p.note || undefined}
+                        className={cn(
+                          'flex min-w-0 items-center justify-center gap-1.5 rounded-full px-2 py-px text-[10.5px] font-medium uppercase tracking-[0.3px]',
+                          p.done ? 'bg-emerald-300 text-black' : 'bg-bg text-text',
+                        )}
+                      >
+                        {p.done ? <Check size={10} strokeWidth={3.5} className="shrink-0" aria-label="Done" /> : <TypeDot type={p.type} />}
                         <span className="truncate">{p.type}</span>
                       </span>
                     ))}

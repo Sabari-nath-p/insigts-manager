@@ -16,6 +16,21 @@ describe('calendar days', () => {
     expect(cleanDay({ posts: [], marker: { label: ' Onam ' } }).marker).toEqual({ label: 'Onam' });
   });
 
+  it('keeps a post that is marked done, and stores nothing for one that is not', () => {
+    const day = cleanDay({
+      posts: [
+        { id: 'a', type: 'Poster', note: '', done: true },
+        { id: 'b', type: 'Video', note: '', done: false },
+        { id: 'c', type: 'Carousel', note: '' },
+      ],
+    });
+    expect(day.posts).toEqual([
+      { id: 'a', type: 'Poster', note: '', done: true },
+      { id: 'b', type: 'Video', note: '' },
+      { id: 'c', type: 'Carousel', note: '' },
+    ]);
+  });
+
   it('replaces one day and leaves the others alone', () => {
     const days = { '3': { posts: [{ id: 'a', type: 'Poster', note: '' }], marker: null } };
     const next = withDay(days, 8, { posts: [{ id: 'b', type: 'Video', note: '' }], marker: null });
