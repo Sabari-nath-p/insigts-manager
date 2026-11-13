@@ -18,6 +18,8 @@ export class PostDto {
   @IsString() @IsNotEmpty() @MaxLength(64) id!: string;
   @IsString() @IsNotEmpty() @MaxLength(60) type!: string;
   @IsString() @MaxLength(1000) note!: string;
+  /** Ticked once the post has gone out. Left out means not done. */
+  @IsOptional() @IsBoolean() done?: boolean;
 }
 
 export class MarkerDto {

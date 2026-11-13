@@ -2,6 +2,8 @@ export interface CalendarPost {
   id: string;
   type: string;
   note: string;
+  /** Only ever stored as true; a post that is not done simply has no `done`. */
+  done?: boolean;
 }
 
 export interface CalendarDay {
@@ -17,7 +19,9 @@ export function daysInMonth(year: number, month: number): number {
 
 /** Trims the text and drops anything that is not part of a day, so only clean data is stored. */
 export function cleanDay(input: { posts: CalendarPost[]; marker?: { label: string } | null }): CalendarDay {
-  const posts = input.posts.map((p) => ({ id: p.id, type: p.type.trim(), note: p.note.trim() })).filter((p) => p.type);
+  const posts = input.posts
+    .map((p) => ({ id: p.id, type: p.type.trim(), note: p.note.trim(), ...(p.done === true ? { done: true } : {}) }))
+    .filter((p) => p.type);
   const label = input.marker?.label.trim();
   return { posts, marker: label ? { label } : null };
 }

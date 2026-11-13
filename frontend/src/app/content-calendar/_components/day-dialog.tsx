@@ -1,6 +1,8 @@
 'use client';
 
 import { useRef, useState } from 'react';
+import { Check } from 'lucide-react';
+import { cn } from '@/lib/cn';
 import { Button } from '@/components/ui/button';
 import { ErrorText, Field, Input, Textarea } from '@/components/ui/field';
 import { DOW_LONG, EMPTY_DAY, MONTHS, QUICK_TYPES, newId } from '@/lib/content-calendar/logic';
@@ -72,6 +74,10 @@ export function DayDialog({
     commit({ ...data, posts }, setPostErr, resetForm);
   }
 
+  function toggleDone(id: string) {
+    commit({ ...data, posts: data.posts.map((p) => (p.id === id ? { ...p, done: !p.done } : p)) }, setPostErr);
+  }
+
   function removePost(id: string) {
     commit({ ...data, posts: data.posts.filter((p) => p.id !== id) }, setPostErr, () => {
       if (editing === id) resetForm();
@@ -91,23 +97,48 @@ export function DayDialog({
   return (
     <Modal open onOpenChange={(o) => !o && onClose()} eyebrow={cal.client} title={`${weekday}, ${day} ${MONTHS[cal.month]}`}>
       <section className="flex flex-col gap-3">
-        <h3 className="text-[12px] uppercase tracking-[0.72px] text-muted">Planned ({data.posts.length})</h3>
+        <h3 className="text-[12px] uppercase tracking-[0.72px] text-muted">
+          Planned ({data.posts.length})
+          {data.posts.some((p) => p.done) && ` · ${data.posts.filter((p) => p.done).length} done`}
+        </h3>
         {data.posts.length > 0 ? (
           <ul className="flex flex-col gap-2">
             {data.posts.map((p) => (
-              <li key={p.id} className="flex items-start gap-3 rounded-lg border border-border px-3 py-2.5">
+              <li key={p.id} className={cn('flex items-start gap-3 rounded-lg border px-3 py-2.5', p.done ? 'border-emerald-400 bg-emerald-200 text-black' : 'border-border')}>
+                {canEdit ? (
+                  <button
+                    type="button"
+                    disabled={busy}
+                    aria-pressed={!!p.done}
+                    aria-label={p.done ? `Mark ${p.type} as not done` : `Mark ${p.type} as done`}
+                    title={p.done ? 'Done. Click to undo' : 'Mark as done'}
+                    onClick={() => toggleDone(p.id)}
+                    className={cn(
+                      'mt-px flex h-6 w-6 shrink-0 items-center justify-center rounded-full border-2 transition-colors disabled:opacity-60',
+                      p.done ? 'border-emerald-700 bg-emerald-700 text-white' : 'border-border text-transparent hover:border-emerald-600 hover:text-emerald-600',
+                    )}
+                  >
+                    <Check size={14} strokeWidth={3} />
+                  </button>
+                ) : (
+                  p.done && (
+                    <span aria-label="Done" className="mt-px flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-emerald-700 text-white">
+                      <Check size={14} strokeWidth={3} />
+                    </span>
+                  )
+                )}
                 <div className="min-w-0 flex-1">
                   <span className="flex items-center gap-2">
                     <TypeDot type={p.type} />
-                    <b className="break-words text-[13px] uppercase tracking-[0.3px] text-text">{p.type}</b>
+                    <b className={cn('break-words text-[13px] uppercase tracking-[0.3px]', p.done ? 'text-black' : 'text-text')}>{p.type}</b>
                   </span>
-                  {p.note && <p className="mt-1 whitespace-pre-wrap break-words text-sm text-muted">{p.note}</p>}
+                  {p.note && <p className={cn('mt-1 whitespace-pre-wrap break-words text-sm', p.done ? 'text-black/70' : 'text-muted')}>{p.note}</p>}
                 </div>
                 {canEdit && (
                   <div className="flex shrink-0 gap-3 text-[13px] font-medium">
                     <button
                       type="button"
-                      className="text-text underline underline-offset-2"
+                      className={cn('underline underline-offset-2', p.done ? 'text-black' : 'text-text')}
                       onClick={() => {
                         setEditing(p.id);
                         setType(p.type);
@@ -118,7 +149,7 @@ export function DayDialog({
                     >
                       Edit
                     </button>
-                    <button type="button" disabled={busy} className="text-danger underline underline-offset-2 disabled:opacity-50" onClick={() => removePost(p.id)}>
+                    <button type="button" disabled={busy} className={cn('underline underline-offset-2 disabled:opacity-50', p.done ? 'text-red-800' : 'text-danger')} onClick={() => removePost(p.id)}>
                       Remove
                     </button>
                   </div>

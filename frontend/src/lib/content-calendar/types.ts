@@ -3,6 +3,8 @@ export interface CcPost {
   id: string;
   type: string;
   note: string;
+  /** Ticked once the post has gone out. Left out means not done. */
+  done?: boolean;
 }
 
 export interface CcDay {
