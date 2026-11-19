@@ -29,11 +29,16 @@ function todayDateString(): string {
   return zonedDateString();
 }
 
-/** The calendar day before today in APP_TIMEZONE (plain date maths on the civil date, no instants involved). */
-function yesterdayDateString(): string {
-  const d = new Date(`${todayDateString()}T00:00:00Z`);
+/** The calendar day before a "YYYY-MM-DD" date (plain date maths on the civil date, no instants involved). */
+function previousDay(date: string): string {
+  const d = new Date(`${date}T00:00:00Z`);
   d.setUTCDate(d.getUTCDate() - 1);
   return d.toISOString().slice(0, 10);
+}
+
+/** The calendar day before today in APP_TIMEZONE. */
+function yesterdayDateString(): string {
+  return previousDay(todayDateString());
 }
 
 function dateRangeInclusive(from: string, to: string): string[] {
@@ -194,7 +199,7 @@ export class AttendanceService {
 
   /**
    * Writes the check-out: worked time, early checkout, overtime and the final status. Used both when a person
-   * checks out and by the 21:00 auto check-out, so the two can never calculate differently. A break still
+   * checks out and by the midnight auto check-out, so the two can never calculate differently. A break still
    * running ends at the check-out, counting up to that moment and no further.
    *
    * `forgotten` is the auto check-out: the person never checked out, so the record is marked "not checked out"
@@ -247,20 +252,20 @@ export class AttendanceService {
   }
 
   /**
-   * Run every day at 21:00 (see AutoCheckoutJob). Everyone still clocked in today forgot to check out. Each is
-   * checked out at their own scheduled end of day (the end of work, e.g. 19:00, not the 21:00 the job runs at),
-   * so the extra two hours are never counted as overtime, and the record is marked "not checked out" so it is
-   * easy to see who forgot. Someone who clocked in after their end time is closed at that moment with no time
-   * worked. Only today's records are touched, so older days are never rewritten. One record failing is logged
-   * and skipped; it never stops the others or throws.
+   * Run every day at midnight (see AutoCheckoutJob), when the 24-hour attendance day ends. Everyone still clocked
+   * in from the day that just ended forgot to check out. Each is checked out at their own scheduled end of day (the
+   * end of work, e.g. 19:00, not the midnight the job runs at), so the hours after it are never counted as
+   * overtime, and the record is marked "not checked out" so it is easy to see who forgot. Someone who clocked in
+   * after their end time is closed at that moment with no time worked. Only that one day is touched, so older
+   * days are never rewritten, and the day still in progress is never touched. One record failing is logged and
+   * skipped; it never stops the others or throws.
    */
   async autoCloseOpenRecords(): Promise<{ closed: number; skipped: number }> {
-    const date = todayDateString();
-    const cutoff = combineDateAndTime(date, AUTO_CHECKOUT_TIME);
-    // Never check anyone out before the job's time: if this is ever called early, it does nothing.
-    if (Date.now() < cutoff.getTime()) {
-      return { closed: 0, skipped: 0 };
-    }
+    // The job fires on the stroke of midnight. Looking a few seconds ahead means a run that lands a hair early
+    // still counts as the new day, so it closes the day that is just ending rather than the one before it.
+    const today = zonedDateString(new Date(Date.now() + 5000));
+    const date = previousDay(today);
+    const cutoff = combineDateAndTime(today, AUTO_CHECKOUT_TIME);
 
     const [open, settings] = await Promise.all([
       this.prisma.attendanceRecord.findMany({ where: { date, checkInAt: { lt: cutoff }, checkOutAt: null } }),
