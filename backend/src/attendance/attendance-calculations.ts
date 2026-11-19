@@ -17,10 +17,12 @@ export interface ScheduleWindow {
 export const APP_TIMEZONE = process.env.APP_TIMEZONE || 'Asia/Kolkata';
 
 /**
- * The time of day (company timezone) the auto check-out runs. Anyone still clocked in then forgot to check out:
- * they are checked out at their scheduled end of day and the record is marked "not checked out".
+ * An attendance day is the full 24 hours, midnight to midnight in the company timezone, so people who work late
+ * are not cut off. This is the time of day the auto check-out runs: at midnight anyone still clocked in from the
+ * day that just ended forgot to check out. They are checked out at their scheduled end of day and the record is
+ * marked "not checked out".
  */
-export const AUTO_CHECKOUT_TIME = '21:00';
+export const AUTO_CHECKOUT_TIME = '00:00';
 
 /** UTC offset (in minutes) that `timeZone` is at for the given instant — handles DST correctly. */
 function tzOffsetMinutes(instant: Date, timeZone: string): number {

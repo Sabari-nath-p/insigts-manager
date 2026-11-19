@@ -5,9 +5,10 @@ import { AttendanceService } from '../attendance/attendance.service';
 import { scheduleDaily } from '../notifications/daily-schedule';
 
 /**
- * Every day at 21:00 (company timezone): anyone still clocked in forgot to check out, so they are closed
- * at their end of day and marked "not checked out". A forgotten check-out never runs on. Failures are
- * logged and never thrown, so this can not take the server down.
+ * Every day at midnight (company timezone), when the 24-hour attendance day ends: anyone still clocked in
+ * from that day forgot to check out, so they are closed at their end of work and marked "not checked out".
+ * A forgotten check-out never runs on. Failures are logged and never thrown, so this can not take the
+ * server down.
  */
 @Injectable()
 export class AutoCheckoutJob implements OnModuleInit {

@@ -1,7 +1,7 @@
 import { ConflictException } from '@nestjs/common';
 import { AttendanceService } from './attendance.service';
 
-// Asia/Kolkata is UTC+5:30: 09:30 IST = 04:00Z, 19:00 IST (end of work) = 13:30Z, 21:00 IST (the job) = 15:30Z.
+// Asia/Kolkata is UTC+5:30: 09:30 IST = 04:00Z, 19:00 IST (end of work) = 13:30Z, midnight IST (the job) = 18:30Z.
 const SETTINGS = {
   requiredMinutesPerDay: 480,
   earlyCheckoutGraceMinutes: 0,
@@ -46,21 +46,21 @@ function setup(records: unknown[] = []) {
 const at = (iso: string) => jest.useFakeTimers().setSystemTime(new Date(iso));
 const updated = (prisma: ReturnType<typeof setup>['prisma'], n = 0) => prisma.attendanceRecord.update.mock.calls[n][0].data;
 
-describe('21:00 auto check-out of people who forgot', () => {
+describe('midnight auto check-out of people who forgot', () => {
   afterEach(() => jest.useRealTimers());
 
-  it('closes them at their end of work (not 21:00), marks them "not checked out", and gives no overtime', async () => {
-    at('2026-11-12T15:30:05Z'); // 21:00:05 IST
+  it('closes them at their end of work (not midnight), marks them "not checked out", and gives no overtime', async () => {
+    at('2026-11-12T18:30:05Z'); // 00:00:05 IST on the 13th: the 12th has just ended
     const { service, prisma } = setup([open({ totalBreakMinutes: 30 })]);
 
     expect(await service.autoCloseOpenRecords()).toEqual({ closed: 1, skipped: 0 });
 
     const where = prisma.attendanceRecord.findMany.mock.calls[0][0].where;
     expect(where).toMatchObject({ date: '2026-11-12', checkOutAt: null });
-    expect(where.checkInAt.lt).toEqual(new Date('2026-11-12T15:30:00Z'));
+    expect(where.checkInAt.lt).toEqual(new Date('2026-11-12T18:30:00Z'));
 
     const data = updated(prisma);
-    expect(data.checkOutAt).toEqual(new Date('2026-11-12T13:30:00Z')); // 19:00 IST, not 21:00
+    expect(data.checkOutAt).toEqual(new Date('2026-11-12T13:30:00Z')); // 19:00 IST, not midnight
     expect(data.status).toBe('not_checked_out');
     expect(data.workedMinutes).toBe(9.5 * 60 - 30);
     expect(data.overtimeMinutes).toBe(0);
@@ -70,7 +70,7 @@ describe('21:00 auto check-out of people who forgot', () => {
   });
 
   it('uses each person\'s own end time, and the company end time when they have none', async () => {
-    at('2026-11-12T15:30:05Z');
+    at('2026-11-12T18:30:05Z');
     const { service, prisma } = setup([open({ id: 'early', scheduledEndTime: '17:30' }), open({ id: 'flex', scheduledEndTime: null })]);
 
     await service.autoCloseOpenRecords();
@@ -80,7 +80,7 @@ describe('21:00 auto check-out of people who forgot', () => {
   });
 
   it('a break still running at the end of work is counted up to then', async () => {
-    at('2026-11-12T15:30:05Z');
+    at('2026-11-12T18:30:05Z');
     const { service, prisma } = setup([open({ totalBreakMinutes: 60, breakStartAt: new Date('2026-11-12T12:30:00Z') })]); // on a break since 18:00
 
     await service.autoCloseOpenRecords();
@@ -95,7 +95,7 @@ describe('21:00 auto check-out of people who forgot', () => {
   });
 
   it('a break that began after the end of work adds nothing and never ends before it started', async () => {
-    at('2026-11-12T15:30:05Z');
+    at('2026-11-12T18:30:05Z');
     const { service, prisma } = setup([open({ totalBreakMinutes: 30, breakStartAt: new Date('2026-11-12T15:00:00Z') })]); // on a break since 20:30
 
     await service.autoCloseOpenRecords();
@@ -108,7 +108,7 @@ describe('21:00 auto check-out of people who forgot', () => {
   });
 
   it('someone who clocked in after the end of work is closed at that moment with nothing worked', async () => {
-    at('2026-11-12T15:30:05Z');
+    at('2026-11-12T18:30:05Z');
     const { service, prisma } = setup([open({ checkInAt: new Date('2026-11-12T14:00:00Z') })]); // clocked in 19:30
 
     await service.autoCloseOpenRecords();
@@ -119,17 +119,25 @@ describe('21:00 auto check-out of people who forgot', () => {
     expect(data.status).toBe('not_checked_out');
   });
 
-  it('does nothing if it is ever run before 21:00', async () => {
-    at('2026-11-12T15:29:00Z');
+  it('never touches the day still in progress: run in the afternoon it only looks at yesterday', async () => {
+    at('2026-11-12T10:00:00Z'); // 15:30 IST on the 12th
+    const { service, prisma } = setup([]);
+
+    await service.autoCloseOpenRecords();
+
+    expect(prisma.attendanceRecord.findMany.mock.calls[0][0].where.date).toBe('2026-11-11');
+  });
+
+  it('a run that lands a few seconds before midnight still closes the day that is ending', async () => {
+    at('2026-11-12T18:29:58Z'); // 23:59:58 IST on the 12th
     const { service, prisma } = setup([open()]);
 
-    expect(await service.autoCloseOpenRecords()).toEqual({ closed: 0, skipped: 0 });
-    expect(prisma.attendanceRecord.findMany).not.toHaveBeenCalled();
-    expect(prisma.attendanceRecord.update).not.toHaveBeenCalled();
+    expect(await service.autoCloseOpenRecords()).toEqual({ closed: 1, skipped: 0 });
+    expect(prisma.attendanceRecord.findMany.mock.calls[0][0].where.date).toBe('2026-11-12');
   });
 
   it('one record failing is skipped and never stops the others or throws', async () => {
-    at('2026-11-12T15:30:05Z');
+    at('2026-11-12T18:30:05Z');
     const { service, prisma } = setup([open({ id: 'bad' }), open({ id: 'good', userId: 'u2' })]);
     prisma.attendanceRecord.update.mockRejectedValueOnce(new Error('database hiccup'));
 
@@ -150,6 +158,18 @@ describe('a person checking out themselves is unchanged', () => {
 
     expect(saved.workedMinutes).toBe(10.5 * 60);
     expect(saved.overtimeMinutes).toBe(10.5 * 60 - 480);
+    expect(saved.status).toBe('present');
+  });
+
+  it('someone working late, well past 9 pm, checks out as normal and nothing closes them early', async () => {
+    at('2026-11-12T17:30:00Z'); // 23:00 IST
+    const { service, prisma } = setup();
+    prisma.attendanceRecord.findFirst.mockResolvedValue(open({ requiredMinutes: 480 }));
+
+    const saved = (await service.checkOut('u1')) as unknown as Record<string, unknown>;
+
+    expect(saved.workedMinutes).toBe(13.5 * 60);
+    expect(saved.overtimeMinutes).toBe(13.5 * 60 - 480);
     expect(saved.status).toBe('present');
   });
 });
