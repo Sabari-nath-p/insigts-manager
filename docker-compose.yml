@@ -64,6 +64,15 @@ services:
       FIREBASE_APP_ID: ${FIREBASE_APP_ID:-}
       FIREBASE_VAPID_KEY: ${FIREBASE_VAPID_KEY:-}
       FIREBASE_SERVICE_ACCOUNT_JSON: ${FIREBASE_SERVICE_ACCOUNT_JSON:-}
+      # "You were assigned a task" emails through any SMTP server (Brevo). See NOTIFICATIONS.md.
+      # Leave blank to keep emails off. The password belongs in the server's own .env, never in this file.
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASS: ${SMTP_PASS:-}
+      MAIL_FROM: ${MAIL_FROM:-}
+      # The website's public address, for the links in emails, e.g. https://insights.yourcompany.com
+      APP_URL: ${APP_URL:-}
     ports:
       - '3001:3001'
     depends_on:

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { cn } from '@/lib/cn';
 import { Button } from '@/components/ui/button';
@@ -48,11 +48,50 @@ function formatElapsed(ms: number): string {
   return [hours, minutes, seconds].map((n) => String(n).padStart(2, '0')).join(':');
 }
 
+/**
+ * What the server's "that does not fit your current state" answers mean in plain words. They happen when this
+ * page was out of date: the person paused, resumed or checked out on another device (their phone) and this tab
+ * was never reloaded, so it still showed the old buttons.
+ */
+const OUT_OF_DATE: Record<string, string> = {
+  'Already on a break': 'You are already on a break (it was started on another device).',
+  'You are not currently on a break': 'Your break was already ended on another device.',
+  'End your current break before checking out': 'You are on a break (started on another device). Resume first, then check out.',
+  'Already checked out today': 'You have already checked out today.',
+  'Attendance for today is already complete': 'You have already checked out today.',
+  'Already checked in today': 'You are already checked in.',
+};
+
+/** How often an open tab asks the server whether anything changed elsewhere. */
+const SYNC_EVERY_MS = 30_000;
+
 export function AttendanceTimer({ today }: { today: TodayRecord | null }) {
   const router = useRouter();
   const [now, setNow] = useState(() => new Date());
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Keep this page in step with the server. The record is only loaded when the page opens, so a pause or resume
+  // done on a phone would not show here. Refresh when the tab comes back into view, when the window is focused,
+  // and every 30 seconds while it is open (never in the middle of this tab's own button press).
+  const busy = useRef(false);
+  const lastSync = useRef(0);
+  busy.current = loading;
+  useEffect(() => {
+    const sync = () => {
+      if (document.visibilityState !== 'visible' || busy.current || Date.now() - lastSync.current < 2000) return;
+      lastSync.current = Date.now();
+      router.refresh();
+    };
+    document.addEventListener('visibilitychange', sync);
+    window.addEventListener('focus', sync);
+    const id = setInterval(sync, SYNC_EVERY_MS);
+    return () => {
+      document.removeEventListener('visibilitychange', sync);
+      window.removeEventListener('focus', sync);
+      clearInterval(id);
+    };
+  }, [router]);
 
   const hasCheckedIn = Boolean(today?.checkInAt);
   const hasCheckedOut = Boolean(today?.checkOutAt);
@@ -72,7 +111,14 @@ export function AttendanceTimer({ today }: { today: TodayRecord | null }) {
       const res = await fetch(path, { method: 'POST' });
       const data = await res.json().catch(() => null);
       if (!res.ok) {
-        throw new Error(data?.message || 'Request failed');
+        const message = String(data?.message || 'Request failed');
+        // 400 / 409 from these buttons mean this page was out of date: show the real state, and say why.
+        if (res.status === 400 || res.status === 409) {
+          lastSync.current = Date.now();
+          router.refresh();
+          throw new Error(`${OUT_OF_DATE[message] ?? message} This page has been updated.`);
+        }
+        throw new Error(message);
       }
       router.refresh();
     } catch (err) {

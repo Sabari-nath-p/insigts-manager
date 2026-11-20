@@ -71,3 +71,46 @@ Without the Firebase settings everything still works except pop-up alerts; the b
 
 ## Changing what is announced
 `backend/src/notifications/presence-events.ts` is the single place that decides which status changes are announced and the wording. The reminder hour is the `scheduleDaily(..., 10, 0, ...)` call in `login-reminder.job.ts`.
+
+## Emails when someone is assigned a task
+When a task is given to someone, they also get an email with a link to it (the bell and the pop-up alert still happen as before). This is for Projects assignments only.
+
+- **Batched:** assignments to the same person within a minute are sent as one email ("Asha assigned you 12 tasks"), so a bulk assign or a calendar import is one email, not a flood. Brevo's free plan allows 300 emails a day.
+- **Never in the way:** the email is sent after the task is saved, and any problem sending is only logged. Nobody is emailed about assigning themselves.
+- **A restart** of the backend forgets emails still waiting in that minute.
+
+### Turning it on (on the server)
+Add these to the server's `.env` (the one `docker-compose` reads), then restart the backend. They are all listed, blank, in `.env.example`.
+
+| Setting | Value |
+|---|---|
+| `SMTP_HOST` | `smtp-relay.brevo.com` |
+| `SMTP_PORT` | `587` |
+| `SMTP_USER` | the SMTP login Brevo shows (ends in `@smtp-brevo.com`) |
+| `SMTP_PASS` | the SMTP key from Brevo. **Never commit it or paste it anywhere shared.** |
+| `MAIL_FROM` | a sender you have verified in Brevo, e.g. `Insights <noreply@yourcompany.com>`. The login above is not a sender. |
+| `APP_URL` | the website's public address, e.g. `https://insights.yourcompany.com`, used for the links. Without it the emails have no links. |
+
+With any of the first four or `MAIL_FROM` blank, email stays off and the backend log says so at startup ("Email is off"). When it is on, the log says "Email is on".
+
+### Brevo: approve the server's address first
+Brevo only accepts SMTP logins from IP addresses you have approved. Until the server's public IP is approved, every send fails at login with `525 5.7.1 Unauthorized IP address` (the backend log shows "Email could not be sent"). In Brevo open the account menu (top right), then **Security**, then **Authorised IPs**, and add the server's public IP, or switch the blocking off.
+
+### The sender, `insightsmarketers@gmail.com`
+There are two ways to use this Gmail address. Pick one.
+
+**A. Send through Gmail itself (simplest, best chance of reaching inboxes).** The email really comes from Gmail, so it passes the checks mail providers make. Turn on 2-Step Verification for that Google account, create an **App password** (Google account, Security, App passwords), then use:
+
+| Setting | Value |
+|---|---|
+| `SMTP_HOST` | `smtp.gmail.com` |
+| `SMTP_PORT` | `587` |
+| `SMTP_USER` | `insightsmarketers@gmail.com` |
+| `SMTP_PASS` | the 16-character App password (not the Gmail password) |
+| `MAIL_FROM` | `Insights <insightsmarketers@gmail.com>` |
+
+A normal Gmail account can send about 500 emails a day, which is plenty because assignments are batched per person.
+
+**B. Keep Brevo.** Brevo asks for a sender on a domain you own (e.g. `noreply@yourcompany.com`) with that domain authenticated (DKIM and DMARC shown green under Brevo's Senders). Nobody but Google can sign mail as `gmail.com`, so a Gmail address sent through Brevo may be rewritten or land in spam. If you do use it, set `MAIL_FROM` to `Insights <insightsmarketers@gmail.com>` and add and verify that address under Brevo's Senders first. The SMTP login (`...@smtp-brevo.com`) must never be used as the From address.
+
+Tests: `cd backend && npx jest mail`.
