@@ -1,5 +1,6 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { PmColumn, PmPriority, PmTask, Prisma } from '@prisma/client';
+import { AssignmentMailer } from '../mail/assignment-mailer.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { PmAccessService } from './pm-access.service';
 import { PmActivityService } from './pm-activity.service';
@@ -42,6 +43,7 @@ export class TasksService {
     private readonly access: PmAccessService,
     private readonly activity: PmActivityService,
     private readonly projects: ProjectsService,
+    private readonly mailer: AssignmentMailer,
   ) {}
 
   // --- Reads -------------------------------------------------------------
@@ -246,6 +248,8 @@ export class TasksService {
       await this.addAssignees(tx, created, assigneeIds, actor.userId);
       return created;
     });
+    // Only now that the task is saved: the email is batched and can never fail this request.
+    this.mailer.queue(assigneeIds, task.id, actor.userId);
     return (await this.hydrate([task], new Map([[project.id, project.key]])))[0];
   }
 
@@ -268,6 +272,7 @@ export class TasksService {
       data.dueDate = dto.dueDate;
     }
 
+    let newlyAssigned: string[] = [];
     await this.prisma.$transaction(async (tx) => {
       await tx.pmTask.update({ where: { id: task.id }, data });
       const base = { projectId: task.projectId, taskId: task.id, actorId: actor.userId };
@@ -287,6 +292,7 @@ export class TasksService {
           await this.activity.log(tx, { ...base, type: 'task.assigned', meta: { removed: removed.map((id) => names.get(id) ?? 'Someone') } });
         }
         await this.addAssignees(tx, task, added, actor.userId);
+        newlyAssigned = added;
       }
       if (dto.labelIds) {
         const valid = await tx.pmLabel.findMany({ where: { id: { in: dto.labelIds }, projectId: task.projectId } });
@@ -294,6 +300,8 @@ export class TasksService {
         await tx.pmTaskLabel.createMany({ data: valid.map((l) => ({ taskId: task.id, labelId: l.id })) });
       }
     });
+    // Only the people newly put on the task, and only now that the change is saved.
+    this.mailer.queue(newlyAssigned, task.id, actor.userId);
     const fresh = await this.prisma.pmTask.findUniqueOrThrow({ where: { id: task.id } });
     return (await this.hydrate([fresh], new Map([[task.projectId, task.projectKey]])))[0];
   }
